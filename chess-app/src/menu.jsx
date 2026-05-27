@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react'
 export default function Menu({ user, onSelect }) {
     const [profile, setProfile] = useState(null)
 
-    // Load the user's username and Elo from the profiles table
     useEffect(() => {
         supabase
             .from('profiles')
             .select('username, elo')
             .eq('id', user.id)
-            .single()
+            .maybeSingle()
             .then(({ data }) => setProfile(data))
     }, [user])
 
