@@ -10,15 +10,25 @@ export default function App() {
     const [screen, setScreen] = useState('menu')
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+        // Check current session on load
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null)
+        })
+
+        // Listen for login/logout events
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null)
+        })
+
+        return () => subscription.unsubscribe()
     }, [])
 
-    if (!user) return <Login onLoggedIn={setUser} />
+    if (!user) return <Login onLoggedIn={() => {}} />
 
     if (screen === 'local')    return <ChessGame botMode="none"  onBack={() => setScreen('menu')} />
     if (screen === 'bot')      return <ChessGame botMode="black" onBack={() => setScreen('menu')} />
     if (screen === 'botvsbot') return <ChessGame botMode="both"  onBack={() => setScreen('menu')} />
-    if (screen === 'online')   return <OnlineGame user={user} onBack={() => setScreen('menu')} />  // ← and this
+    if (screen === 'online')   return <OnlineGame user={user} onBack={() => setScreen('menu')} />
     if (screen === 'leaderboard') return (
         <div className="app">
             <button className="back-btn" onClick={() => setScreen('menu')}>← Menü</button>
