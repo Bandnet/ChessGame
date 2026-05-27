@@ -2,16 +2,20 @@ import supabase from './supabase.js'
 
 // Register
 export async function register(email, password, username) {
-    // 1. Create the auth account
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
+    if (!data.user) throw new Error('Registrierung fehlgeschlagen, bitte nochmal versuchen')
 
-    // 2. Save username + starting Elo to profiles table
-    await supabase.from('profiles').insert({
+    // Wait a moment for the user to be created
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         username: username,
         elo: 1200
     })
+
+    if (profileError) throw profileError
 }
 
 // Login
