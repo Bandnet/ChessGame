@@ -41,6 +41,21 @@ export default function OnlineGame({ user, onBack }) {
         return () => { supabase.removeAllChannels() }
     }, [])
 
+    // ── VERLASSEN = VERLIEREN ────────────────────────────────────────
+    useEffect(() => {
+        if (!gameId || status !== "playing") return
+
+        function handleLeave() {
+            navigator.sendBeacon(
+                `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
+                JSON.stringify({ game_id: gameId, user_id: user.id })
+            )
+        }
+
+        window.addEventListener("beforeunload", handleLeave)
+        return () => window.removeEventListener("beforeunload", handleLeave)
+    }, [gameId, status])
+
     async function findOrCreateGame() {
         setStatus("searching")
         try {
