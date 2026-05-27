@@ -15,10 +15,10 @@ function getSymbol(piece) {
 function calculateElo(winnerElo, loserElo) {
     const k = 32
     const expectedWinner = 1 / (1 + Math.pow(10, (loserElo - winnerElo) / 400))
-    const expectedLoser  = 1 / (1 + Math.pow(10, (winnerElo - loserElo) / 400))
+    const change = Math.round(k * (1 - expectedWinner))
     return {
-        newWinnerElo: Math.round(winnerElo + k * (1 - expectedWinner)),
-        newLoserElo:  Math.round(loserElo  + k * (0 - expectedLoser))
+        newWinnerElo: winnerElo + change,
+        newLoserElo: Math.max(100, loserElo - change)
     }
 }
 
