@@ -8,6 +8,7 @@ export default function Login({ onLoggedIn }) {
     const [username, setUsername] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
+    const [registered, setRegistered] = useState(false)
 
     async function handleSubmit() {
         setError('')
@@ -15,15 +16,34 @@ export default function Login({ onLoggedIn }) {
         try {
             if (isRegister) {
                 await register(email, password, username)
+                setRegistered(true)
             } else {
                 await login(email, password)
+                onLoggedIn()
             }
-            onLoggedIn()
         } catch (err) {
             setError(err.message)
         }
         setLoading(false)
     }
+
+    if (registered) return (
+        <div className="login">
+            <h1 className="title">♟ CHESS.EXE</h1>
+            <div className="login-box" style={{ textAlign: 'center', gap: '16px' }}>
+                <p className="status">✅ Account erstellt!</p>
+                <p className="toggle-link">
+                    Bitte bestätige deine Email-Adresse und logge dich dann ein.
+                </p>
+                <p
+                    className="toggle-link"
+                    onClick={() => { setRegistered(false); setIsRegister(false) }}
+                >
+                    Zum Login →
+                </p>
+            </div>
+        </div>
+    )
 
     return (
         <div className="login">
