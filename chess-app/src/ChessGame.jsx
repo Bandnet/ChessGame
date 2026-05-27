@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Chess } from "chess.js"
 
 const PIECES = {
@@ -30,7 +30,6 @@ function getBestMove(game) {
     return scored[0].move
 }
 
-// ✅ now accepts botMode and onBack as props
 export default function ChessGame({ botMode = "none", onBack }) {
     const [game, setGame] = useState(new Chess())
     const [from, setFrom] = useState(null)
@@ -38,16 +37,27 @@ export default function ChessGame({ botMode = "none", onBack }) {
     const [hints, setHints] = useState([])
     const [thinking, setThinking] = useState(false)
 
+    // ── INAKTIVITÄTS-TIMER STATES ─────────────────────────────────────
+    const [moveTimeLeft, setMoveTimeLeft] = useState(300) // 5 Minuten Limit pro Zug
+    const [gameFinished, setGameFinished] = useState(false)
+    const [timeWinner, setTimeWinner] = useState(null)
+    const [graceTimeLeft, setGraceTimeLeft] = useState(20) // 20s Schonfrist für den 1. Zug
+    const [isGracePeriod, setIsGracePeriod] = useState(true)
+
+    const timerRef = useRef(null)
+    const graceTimerRef = useRef(null)
+
     const files = ["a","b","c","d","e","f","g","h"]
     const ranks = [8,7,6,5,4,3,2,1]
 
-    // ✅ reset when botMode changes (switching game modes)
+    // Reset bei Modus-Wechsel
     useEffect(() => {
         reset()
     }, [botMode])
 
+    // ── BOT LOGIK ────────────────────────────────────────────────────
     useEffect(() => {
-        if (game.isGameOver()) return
+        if (game.isGameOver() || gameFinished) return
         const isBotTurn =
             (botMode === "black" && game.turn() === "b") ||
             (botMode === "both")
@@ -61,15 +71,92 @@ export default function ChessGame({ botMode = "none", onBack }) {
                     copy.move(move)
                     setGame(copy)
                     setHistory(h => [...h, move.san])
+                    // Bot-Zug setzt den Timer für den nächsten Spieler zurück
+                    setMoveTimeLeft(300)
                 }
                 setThinking(false)
             }, 500)
             return () => clearTimeout(timeout)
         }
-    }, [game, botMode])
+    }, [game, botMode, gameFinished])
 
+    // ── 20 SEKUNDEN START-SCHONFRIST (NUR FÜR DEN ALLERERSTEN ZUG) ────
+    useEffect(() => {
+        if (gameFinished || history.length > 0) {
+            setIsGracePeriod(false)
+            clearInterval(graceTimerRef.current)
+            return
+        }
+
+        graceTimerRef.current = setInterval(() => {
+            setGraceTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(graceTimerRef.current)
+                    setGameFinished(true)
+                    setIsGracePeriod(false)
+                    setTimeWinner("Unentschieden! (Weisser Spieler inaktiv)")
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => clearInterval(graceTimerRef.current)
+    }, [history, gameFinished])
+
+    // ── MOVE-TIMER LOGIK (TICKT PRO ZUG RUNTER & RESETTET BEI JEDEM ZUG) ──
+    useEffect(() => {
+        if (game.isGameOver() || gameFinished || thinking || isGracePeriod) {
+            clearInterval(timerRef.current)
+            return
+        }
+
+        timerRef.current = setInterval(() => {
+            setMoveTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(timerRef.current)
+                    setGameFinished(true)
+                    const loser = game.turn() === "w" ? "Weiss" : "Schwarz"
+                    const winner = game.turn() === "w" ? "Schwarz" : "Weiss"
+                    setTimeWinner(`${winner} gewinnt (Inaktivität von ${loser})!`)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => clearInterval(timerRef.current)
+    }, [game, gameFinished, thinking, isGracePeriod])
+
+    // ── AUFGEBEN & REMIS FUNCTIONS ──────────────────────────────────
+    function handleResign() {
+        if (game.isGameOver() || gameFinished) return
+        const activePlayer = game.turn() === "w" ? "Weiss" : "Schwarz"
+        const winner = game.turn() === "w" ? "Schwarz" : "Weiss"
+
+        if (window.confirm(`${activePlayer}, möchtest du wirklich aufgeben?`)) {
+            clearInterval(timerRef.current)
+            clearInterval(graceTimerRef.current)
+            setGameFinished(true)
+            setIsGracePeriod(false)
+            setTimeWinner(`${winner} gewinnt durch Aufgabe!`)
+        }
+    }
+
+    function handleDraw() {
+        if (game.isGameOver() || gameFinished) return
+        if (window.confirm("Möchtet ihr euch auf ein Unentschieden einigen?")) {
+            clearInterval(timerRef.current)
+            clearInterval(graceTimerRef.current)
+            setGameFinished(true)
+            setIsGracePeriod(false)
+            setTimeWinner("Unentschieden durch Vereinbarung!")
+        }
+    }
+
+    // ── KLICK LOGIK ──────────────────────────────────────────────────
     function handleClick(square) {
-        if (thinking) return
+        if (thinking || gameFinished) return
         if (botMode === "both") return
         if (botMode === "black" && game.turn() === "b") return
 
@@ -101,6 +188,11 @@ export default function ChessGame({ botMode = "none", onBack }) {
                 if (move) {
                     setGame(copy)
                     setHistory(h => [...h, move.san])
+
+                    // WICHTIG: Timer wieder komplett auf 5 Minuten zurücksetzen!
+                    setMoveTimeLeft(300)
+                    setIsGracePeriod(false)
+                    clearInterval(graceTimerRef.current)
                 }
             } catch(e) {}
             setFrom(null)
@@ -109,14 +201,22 @@ export default function ChessGame({ botMode = "none", onBack }) {
     }
 
     function reset() {
+        clearInterval(timerRef.current)
+        clearInterval(graceTimerRef.current)
         setGame(new Chess())
         setFrom(null)
         setHistory([])
         setHints([])
         setThinking(false)
+        setMoveTimeLeft(300) // Zurück auf 5 Minuten
+        setGraceTimeLeft(20)
+        setIsGracePeriod(true)
+        setGameFinished(false)
+        setTimeWinner(null)
     }
 
     function getStatus() {
+        if (timeWinner) return timeWinner
         if (thinking) return "Bot denkt nach..."
         if (game.isCheckmate()) return "Schachmatt! " + (game.turn() === "w" ? "Schwarz" : "Weiss") + " gewinnt!"
         if (game.isDraw()) return "Unentschieden!"
@@ -124,12 +224,33 @@ export default function ChessGame({ botMode = "none", onBack }) {
         return game.turn() === "w" ? "Weiss ist dran" : "Schwarz ist dran"
     }
 
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60)
+        const secs = seconds % 60
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+
     return (
         <div className="app">
-            {/* ✅ back button to return to menu */}
             <button className="back-btn" onClick={onBack}>← Menü</button>
 
             <h1 className="title">♟ CHESS.EXE</h1>
+
+            {/* ── OBEN: NUR ANZEIGEN WENN ES WARNUNGEN GIBT ──────────────── */}
+            <div className="game-alerts">
+                {isGracePeriod && !gameFinished && (
+                    <div className="grace-countdown">
+                        ⏳ Spiel startet in: {graceTimeLeft}s
+                    </div>
+                )}
+
+                {/* Zeigt die verbleibende Zugzeit NUR unter 60 Sekunden an */}
+                {!isGracePeriod && moveTimeLeft <= 60 && !gameFinished && (
+                    <div className="move-warning-clock">
+                        ⚠️ ZEITLIMIT: {game.turn() === "w" ? "♔ Weiss" : "♚ Schwarz"} muss ziehen! ({formatTime(moveTimeLeft)})
+                    </div>
+                )}
+            </div>
 
             <div className="main">
                 <div className="board-wrap">
@@ -163,6 +284,16 @@ export default function ChessGame({ botMode = "none", onBack }) {
                     </div>
 
                     <button className="reset-btn" onClick={reset}>⟳ Neue Partie</button>
+
+                    {/* ── NEUE STYLISCHE BUTTONS UNTEN ── */}
+                    <div className="action-buttons-bottom">
+                        <button className="matrix-btn resign" onClick={handleResign} disabled={gameFinished || game.isGameOver()}>
+                            🏳️ Aufgeben
+                        </button>
+                        <button className="matrix-btn draw" onClick={handleDraw} disabled={gameFinished || game.isGameOver()}>
+                            🤝 Remis
+                        </button>
+                    </div>
                 </div>
 
                 <div className="sidebar">
