@@ -48,45 +48,55 @@ export default function OnlineGame({ user, onBack }) {
     async function findOrCreateGame() {
         setStatus("searching")
 
-        // look for a waiting game that isn't ours
-        const { data: existing } = await supabase
-            .from("games")
-            .select("*")
-            .eq("status", "waiting")
-            .neq("player_white", user.id)
-            .limit(1)
-            .single()
-
-        if (existing) {
-            // join as black
-            await supabase.from("games").update({
-                player_black: user.id,
-                status: "active"
-            }).eq("id", existing.id)
-
-            setGameId(existing.id)
-            setMyColor("b")
-            setStatus("playing")
-
-            // get opponent name
-            const { data: opp } = await supabase
-                .from("profiles")
-                .select("username")
-                .eq("id", existing.player_white)
-                .single()
-            setOpponentName(opp?.username || "Opponent")
-
-        } else {
-            // create a new waiting game
-            const { data: newGame } = await supabase
+        try {
+            // look for a waiting game
+            const { data: existing } = await supabase
                 .from("games")
-                .insert({ player_white: user.id, status: "waiting", board_state: {} })
-                .select()
-                .single()
+                .select("*")
+                .eq("status", "waiting")
+                .neq("player_white", user.id)
+                .maybeSingle()  // ← changed from .single()
 
-            setGameId(newGame.id)
-            setMyColor("w")
-            setStatus("waiting")
+            if (existing) {
+                await supabase.from("games").update({
+                    player_black: user.id,
+                    status: "active"
+                }).eq("id", existing.id)
+
+                setGameId(existing.id)
+                setMyColor("b")
+                setStatus("playing")
+
+                const { data: opp } = await supabase
+                    .from("profiles")
+                    .select("username")
+                    .eq("id", existing.player_white)
+                    .maybeSingle()  // ← changed from .single()
+                setOpponentName(opp?.username || "Opponent")
+
+            } else {
+                // delete any old waiting games by this user first
+                await supabase
+                    .from("games")
+                    .delete()
+                    .eq("player_white", user.id)
+                    .eq("status", "waiting")
+
+                const { data: newGame, error } = await supabase
+                    .from("games")
+                    .insert({ player_white: user.id, status: "waiting", board_state: {} })
+                    .select()
+                    .maybeSingle()  // ← changed from .single()
+
+                if (error) { console.error(error); return }
+                if (!newGame) { console.error("newGame is null"); return }
+
+                setGameId(newGame.id)
+                setMyColor("w")
+                setStatus("waiting")
+            }
+        } catch (err) {
+            console.error("matchmaking error:", err)
         }
     }
 
