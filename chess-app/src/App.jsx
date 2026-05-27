@@ -30,7 +30,7 @@ export default function App() {
     if (screen === 'bot')      return <ChessGame botMode="black" onBack={() => setScreen('menu')} />
     if (screen === 'botvsbot') return <ChessGame botMode="both"  onBack={() => setScreen('menu')} />
     if (screen === 'online')   return <OnlineGame user={user} onBack={() => setScreen('menu')} />
-    if (screen === 'leaderboard') return <Leaderboard onBack={() => setScreen('menu')} />
+    if (screen === 'leaderboard') return <Leaderboard onBack={() => setScreen('menu')} user={user} />
 
     return <Menu user={user} onSelect={setScreen} />
 }
