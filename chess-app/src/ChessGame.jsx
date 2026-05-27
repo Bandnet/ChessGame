@@ -43,6 +43,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
     const [timeWinner, setTimeWinner] = useState(null)
     const [graceTimeLeft, setGraceTimeLeft] = useState(20) // 20s Schonfrist für den 1. Zug
     const [isGracePeriod, setIsGracePeriod] = useState(true)
+    const [showDrawConfirm, setShowDrawConfirm] = useState(false) // Terminal-Popup State
 
     const timerRef = useRef(null)
     const graceTimerRef = useRef(null)
@@ -50,7 +51,6 @@ export default function ChessGame({ botMode = "none", onBack }) {
     const files = ["a","b","c","d","e","f","g","h"]
     const ranks = [8,7,6,5,4,3,2,1]
 
-    // Reset bei Modus-Wechsel
     useEffect(() => {
         reset()
     }, [botMode])
@@ -71,8 +71,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
                     copy.move(move)
                     setGame(copy)
                     setHistory(h => [...h, move.san])
-                    // Bot-Zug setzt den Timer für den nächsten Spieler zurück
-                    setMoveTimeLeft(300)
+                    setMoveTimeLeft(300) // Bot-Zug setzt den Timer für den nächsten Spieler zurück
                 }
                 setThinking(false)
             }, 500)
@@ -104,7 +103,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
         return () => clearInterval(graceTimerRef.current)
     }, [history, gameFinished])
 
-    // ── MOVE-TIMER LOGIK (TICKT PRO ZUG RUNTER & RESETTET BEI JEDEM ZUG) ──
+    // ── MOVE-TIMER LOGIK (TICKT RUNTER & RESETTET BEI JEDEM ZUG) ──────
     useEffect(() => {
         if (game.isGameOver() || gameFinished || thinking || isGracePeriod) {
             clearInterval(timerRef.current)
@@ -145,7 +144,12 @@ export default function ChessGame({ botMode = "none", onBack }) {
 
     function handleDraw() {
         if (game.isGameOver() || gameFinished) return
-        if (window.confirm("Möchtet ihr euch auf ein Unentschieden einigen?")) {
+        setShowDrawConfirm(true) // Öffnet das Terminal-Popup
+    }
+
+    function confirmDraw(accepted) {
+        setShowDrawConfirm(false)
+        if (accepted) {
             clearInterval(timerRef.current)
             clearInterval(graceTimerRef.current)
             setGameFinished(true)
@@ -189,8 +193,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
                     setGame(copy)
                     setHistory(h => [...h, move.san])
 
-                    // WICHTIG: Timer wieder komplett auf 5 Minuten zurücksetzen!
-                    setMoveTimeLeft(300)
+                    setMoveTimeLeft(300) // Timer wieder komplett auf 5 Minuten zurücksetzen!
                     setIsGracePeriod(false)
                     clearInterval(graceTimerRef.current)
                 }
@@ -208,11 +211,12 @@ export default function ChessGame({ botMode = "none", onBack }) {
         setHistory([])
         setHints([])
         setThinking(false)
-        setMoveTimeLeft(300) // Zurück auf 5 Minuten
+        setMoveTimeLeft(300)
         setGraceTimeLeft(20)
         setIsGracePeriod(true)
         setGameFinished(false)
         setTimeWinner(null)
+        setShowDrawConfirm(false)
     }
 
     function getStatus() {
@@ -236,7 +240,6 @@ export default function ChessGame({ botMode = "none", onBack }) {
 
             <h1 className="title">♟ CHESS.EXE</h1>
 
-            {/* ── OBEN: NUR ANZEIGEN WENN ES WARNUNGEN GIBT ──────────────── */}
             <div className="game-alerts">
                 {isGracePeriod && !gameFinished && (
                     <div className="grace-countdown">
@@ -244,7 +247,6 @@ export default function ChessGame({ botMode = "none", onBack }) {
                     </div>
                 )}
 
-                {/* Zeigt die verbleibende Zugzeit NUR unter 60 Sekunden an */}
                 {!isGracePeriod && moveTimeLeft <= 60 && !gameFinished && (
                     <div className="move-warning-clock">
                         ⚠️ ZEITLIMIT: {game.turn() === "w" ? "♔ Weiss" : "♚ Schwarz"} muss ziehen! ({formatTime(moveTimeLeft)})
@@ -285,7 +287,6 @@ export default function ChessGame({ botMode = "none", onBack }) {
 
                     <button className="reset-btn" onClick={reset}>⟳ Neue Partie</button>
 
-                    {/* ── NEUE STYLISCHE BUTTONS UNTEN ── */}
                     <div className="action-buttons-bottom">
                         <button className="matrix-btn resign" onClick={handleResign} disabled={gameFinished || game.isGameOver()}>
                             🏳️ Aufgeben
@@ -309,6 +310,25 @@ export default function ChessGame({ botMode = "none", onBack }) {
                     </div>
                 </div>
             </div>
+
+            {/* ── TERMINAL CONFIRM POPUP ── */}
+            {showDrawConfirm && (
+                <div className="terminal-overlay">
+                    <div className="terminal-popup">
+                        <p className="terminal-popup-text">
+                            Möchtet ihr euch auf ein Unentschieden (Remis) einigen?
+                        </p>
+                        <div className="terminal-popup-buttons">
+                            <button className="matrix-btn confirm-yes" onClick={() => confirmDraw(true)}>
+                                [ JA ]
+                            </button>
+                            <button className="matrix-btn confirm-no" onClick={() => confirmDraw(false)}>
+                                [ NEIN ]
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

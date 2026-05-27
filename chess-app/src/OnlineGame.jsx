@@ -33,12 +33,15 @@ export default function OnlineGame({ user, onBack }) {
     const [eloChange, setEloChange] = useState(null)
     const [opponentName, setOpponentName] = useState("")
 
-    // ── TIMER STATES (INAKTIVITÄT) ───────────────────────────────────
-    const [moveTimeLeft, setMoveTimeLeft] = useState(300) // 5 Minuten pro Zug
-    const [graceTimeLeft, setGraceTimeLeft] = useState(20) // 20s Schonfrist am Start
+    // ── NEW: STATE FÜR DAS REMIS-ANGEBOT AUS DER DB ──────────────────
+    const [drawOfferedBy, setDrawOfferedBy] = useState(null) // Speichert die User-ID des Anbieters
+
+    // ── TIMER STATES ─────────────────────────────────────────────────
+    const [moveTimeLeft, setMoveTimeLeft] = useState(300)
+    const [graceTimeLeft, setGraceTimeLeft] = useState(20)
     const [isGracePeriod, setIsGracePeriod] = useState(true)
 
-    const timerRef                  = useRef(null)
+    const timerRef                   = useRef(null)
     const graceTimerRef              = useRef(null)
 
     const files = myColor === "b" ? ["h","g","f","e","d","c","b","a"] : ["a","b","c","d","e","f","g","h"]
@@ -68,7 +71,7 @@ export default function OnlineGame({ user, onBack }) {
         return () => window.removeEventListener("beforeunload", handleLeave)
     }, [gameId, status])
 
-    // ── 20 SEKUNDEN START-SCHONFRIST (NUR FÜR WEISS BEIM ERSTEN ZUG) ──
+    // ── 20 SEKUNDEN START-SCHONFRIST ─────────────────────────────────
     useEffect(() => {
         if (status !== "playing" || game.history().length > 0) {
             setIsGracePeriod(false)
@@ -81,7 +84,6 @@ export default function OnlineGame({ user, onBack }) {
                 if (prev <= 1) {
                     clearInterval(graceTimerRef.current)
                     setIsGracePeriod(false)
-                    // Wenn ich Weiß bin und nichts mache -> Ich trigger das Remis wegen Inaktivität
                     if (myColor === "w") {
                         finishGame(gameId, null)
                     }
@@ -94,7 +96,7 @@ export default function OnlineGame({ user, onBack }) {
         return () => clearInterval(graceTimerRef.current)
     }, [status, game, myColor, gameId])
 
-    // ── INAKTIVITÄTS-TIMER LOGIK (NUR AKTIV WENN ICH DRAN BIN) ────────
+    // ── INAKTIVITÄTS-TIMER LOGIK ─────────────────────────────────────
     useEffect(() => {
         if (status !== "playing" || isGracePeriod) {
             clearInterval(timerRef.current)
@@ -116,13 +118,12 @@ export default function OnlineGame({ user, onBack }) {
             }, 1000)
         } else {
             clearInterval(timerRef.current)
-            setMoveTimeLeft(300) // Reset auf 5 Minuten, während der Gegner nachdenkt
+            setMoveTimeLeft(300)
         }
 
         return () => clearInterval(timerRef.current)
     }, [game, status, myColor, isGracePeriod])
 
-    // Wenn die eigene Zeit abläuft, verliert man das Spiel online
     async function handleTimeout() {
         if (!gameId) return
         const opponentId = await fetchOpponentId()
@@ -141,7 +142,6 @@ export default function OnlineGame({ user, onBack }) {
         return myColor === "w" ? data.player_black : data.player_white
     }
 
-    // ── AUFGEBEN & REMIS BUTTONS ────────────────────────────────────
     async function handleResign() {
         if (!gameId || status !== "playing") return
         const confirmResign = window.confirm("Möchtest du wirklich aufgeben?")
@@ -153,12 +153,22 @@ export default function OnlineGame({ user, onBack }) {
         }
     }
 
-    async function handleOfferDraw() {
+    // ── NEW: INTELLIGENTE REMIS-LOGIK OHNE OVERLAY ───────────────────
+    async function handleDrawButton() {
         if (!gameId || status !== "playing") return
-        const confirmDraw = window.confirm("Möchtest du ein Unentschieden anbieten? (Triggert sofortiges Remis für diese Demo)")
-        if (confirmDraw) {
+
+        // Fall 1: Der Gegner hat bereits Remis angeboten -> Ich nehme es jetzt an!
+        if (drawOfferedBy && drawOfferedBy !== user.id) {
             await finishGame(gameId, null)
+            return
         }
+
+        // Fall 2: Bisher kein Angebot -> Ich biete es im Hintergrund über die DB an
+        // HINWEIS: Stelle sicher, dass deine Spalte in Supabase "draw_offered_by" heißt!
+        await supabase
+            .from("games")
+            .update({ draw_offered_by: user.id })
+            .eq("id", gameId)
     }
 
     async function findOrCreateGame() {
@@ -166,13 +176,13 @@ export default function OnlineGame({ user, onBack }) {
         setMoveTimeLeft(300)
         setGraceTimeLeft(20)
         setIsGracePeriod(true)
+        setDrawOfferedBy(null)
         try {
             const { data, error } = await supabase.rpc('find_or_create_game', {
                 p_user_id: user.id
             })
 
             if (error) { console.error(error); return }
-
             const g = data.game
 
             if (data.action === 'joined') {
@@ -186,7 +196,6 @@ export default function OnlineGame({ user, onBack }) {
                     .eq("id", g.player_white)
                     .maybeSingle()
                 setOpponentName(opp?.username || "Opponent")
-
             } else {
                 setGameId(g.id)
                 setMyColor("w")
@@ -222,7 +231,7 @@ export default function OnlineGame({ user, onBack }) {
         return () => supabase.removeChannel(channel)
     }, [gameId, status])
 
-    // ── LISTEN FOR MOVES ─────────────────────────────────────────────
+    // ── LISTEN FOR MOVES & REMIS STATUSUPDATES ────────────────────────
     useEffect(() => {
         if (!gameId || status !== "playing") return
 
@@ -236,8 +245,6 @@ export default function OnlineGame({ user, onBack }) {
             }, (payload) => {
                 if (payload.new.player_id !== user.id) {
                     applyMove(payload.new.move_notation)
-
-                    // Sobald ein gegnerischer Zug ankommt, bricht die Startfrist ab und der eigene Timer resettet
                     setIsGracePeriod(false)
                     clearInterval(graceTimerRef.current)
                     setMoveTimeLeft(300)
@@ -253,8 +260,13 @@ export default function OnlineGame({ user, onBack }) {
                 table: "games",
                 filter: `id=eq.${gameId}`
             }, (payload) => {
+                // Spiel beendet?
                 if (payload.new.status === "finished") {
                     handleGameOver(payload.new.winner)
+                }
+                // NEU: Synchronisiere das Remis-Angebot in Echtzeit aus der DB
+                if (payload.new.draw_offered_by !== undefined) {
+                    setDrawOfferedBy(payload.new.draw_offered_by)
                 }
             })
             .subscribe()
@@ -316,11 +328,14 @@ export default function OnlineGame({ user, onBack }) {
                 const move = copy.move({ from, to: square, promotion: "q" })
                 if (move) {
                     setGame(copy)
-
-                    // Eigener Zug beendet die Start-Schonfrist sofort und setzt Timer zurück
                     setIsGracePeriod(false)
                     clearInterval(graceTimerRef.current)
                     setMoveTimeLeft(300)
+
+                    // Sobald ein neuer Zug gemacht wird, verfällt das alte Remis-Angebot der Fairness halber
+                    if (drawOfferedBy) {
+                        await supabase.from("games").update({ draw_offered_by: null }).eq("id", gameId)
+                    }
 
                     await supabase.from("moves").insert({
                         game_id: gameId,
@@ -388,6 +403,19 @@ export default function OnlineGame({ user, onBack }) {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
     }
 
+    // Hilfsfunktion: Bestimmt Beschriftung & Zustand des intelligenten Draw-Buttons
+    function getDrawButtonProps() {
+        if (!drawOfferedBy) {
+            return { text: "🤝 Remis anbieten", disabled: false, className: "matrix-btn draw" }
+        }
+        if (drawOfferedBy === user.id) {
+            return { text: "⏳ Remis angeboten...", disabled: true, className: "matrix-btn draw-pending" }
+        }
+        return { text: "🤝 Remis annehmen!", disabled: false, className: "matrix-btn draw-accept" }
+    }
+
+    const drawBtn = getDrawButtonProps()
+
     if (status === "searching") return (
         <div className="app">
             <button className="back-btn" onClick={onBack}>← Menü</button>
@@ -439,7 +467,6 @@ export default function OnlineGame({ user, onBack }) {
                 </span>
             </div>
 
-            {/* ── ALERTS: ZEIGT DIE SYSTEMWARNUNGEN NATIVE AN (WENN UNTER 1 MIN) ── */}
             <div className="game-alerts">
                 {isGracePeriod && (
                     <div className="grace-countdown">
@@ -447,7 +474,14 @@ export default function OnlineGame({ user, onBack }) {
                     </div>
                 )}
 
-                {!isGracePeriod && moveTimeLeft <= 60 && game.turn() === myColor && (
+                {/* NEU: Notification Text-Anzeige oben, wenn der Gegner Remis anbietet */}
+                {!isGracePeriod && drawOfferedBy && drawOfferedBy !== user.id && (
+                    <div className="draw-notification-banner">
+                        🤝 SYSTEM: {opponentName} bietet ein Unentschieden an!
+                    </div>
+                )}
+
+                {!isGracePeriod && (!drawOfferedBy || drawOfferedBy === user.id) && moveTimeLeft <= 60 && game.turn() === myColor && (
                     <div className="move-warning-clock">
                         ⚠️ INAKTIVITÄTS-WARNUNG! Du musst ziehen! ({formatTime(moveTimeLeft)})
                     </div>
@@ -483,10 +517,12 @@ export default function OnlineGame({ user, onBack }) {
                         )}
                     </div>
 
-                    {/* ── DIE NEUEN MATRIX BUTTONS STEHEN JETZT UNTEN UNTER DEM BRETT ── */}
                     <div className="action-buttons-bottom">
                         <button className="matrix-btn resign" onClick={handleResign}>🏳️ Aufgeben</button>
-                        <button className="matrix-btn draw" onClick={handleOfferDraw}>🤝 Remis</button>
+                        {/* Der dynamisch gesteuerte Button */}
+                        <button className={drawBtn.className} onClick={handleDrawButton} disabled={drawBtn.disabled}>
+                            {drawBtn.text}
+                        </button>
                     </div>
                 </div>
             </div>

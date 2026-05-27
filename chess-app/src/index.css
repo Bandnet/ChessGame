@@ -207,6 +207,116 @@ body {
   color: #ff3939;
   box-shadow: 0 0 8px #ff393944;
 }
+/* ── IN-GAME DRAW NOTIFICATION ── */
+.draw-notification-banner {
+  color: #ffcc00;
+  font-weight: bold;
+  font-size: 14px;
+  padding: 6px 16px;
+  border: 1px solid #ffcc00;
+  background: rgba(255, 204, 0, 0.1);
+  box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+  text-shadow: 0 0 6px rgba(255, 204, 0, 0.5);
+  border-radius: 4px;
+  letter-spacing: 1px;
+  animation: matrix-blink 1.2s infinite alternate;
+}
+
+/* Wenn ich das Angebot gesendet habe (Wartend) */
+.matrix-btn.draw-pending {
+  border-color: #39ff1444;
+  color: #39ff1444;
+  text-shadow: none;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Wenn der Gegner mir ein Angebot macht (Aktion erforderlich!) */
+.matrix-btn.draw-accept {
+  border-color: #ffcc00;
+  color: #ffcc00;
+  box-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+  text-shadow: 0 0 5px rgba(255, 204, 0, 0.6);
+  animation: matrix-blink 1s infinite alternate;
+}
+
+.matrix-btn.draw-accept:hover {
+  background: rgba(255, 204, 0, 0.15);
+  box-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
+}
+/* ── TERMINAL CONFIRM MODAL ── */
+.terminal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85); /* Verdunkelt den Hintergrund */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* Immer ganz oben */
+}
+
+.terminal-popup {
+  background: #050f05;
+  border: 2px solid #39ff14;
+  border-radius: 4px;
+  padding: 30px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 0 30px rgba(57, 255, 20, 0.4);
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.terminal-popup::before {
+  content: "[ SYSTEM REQUEST - REMIS ]";
+  position: absolute;
+  top: -12px;
+  left: 15px;
+  background: #0a0a0a;
+  padding: 0 6px;
+  font-size: 11px;
+  color: #39ff14;
+  letter-spacing: 2px;
+}
+
+.terminal-popup-text {
+  font-size: 15px;
+  color: #39ff14;
+  text-shadow: 0 0 5px #39ff14;
+  line-height: 1.5;
+  letter-spacing: 1px;
+}
+
+.terminal-popup-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* Wiederverwendung deiner matrix-btn Styles mit Anpassung für das Popup */
+.terminal-popup-buttons .matrix-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+}
+
+.terminal-popup-buttons .matrix-btn.confirm-yes:hover {
+  border-color: #ffcc00;
+  color: #ffcc00;
+  box-shadow: 0 0 12px rgba(255, 204, 0, 0.6);
+}
+
+.terminal-popup-buttons .matrix-btn.confirm-no:hover {
+  border-color: #ff3939;
+  color: #ff3939;
+  box-shadow: 0 0 12px rgba(255, 57, 57, 0.6);
+}
 
 /* ── RESULT SCREEN ── */
 .result-screen {
