@@ -44,47 +44,28 @@ export default function OnlineGame({ user, onBack }) {
     async function findOrCreateGame() {
         setStatus("searching")
         try {
-            const { data: existing } = await supabase
-                .from("games")
-                .select("*")
-                .eq("status", "waiting")
-                .neq("player_white", user.id)
-                .maybeSingle()
+            const { data, error } = await supabase.rpc('find_or_create_game', {
+                p_user_id: user.id
+            })
 
-            if (existing) {
-                await supabase.from("games").update({
-                    player_black: user.id,
-                    status: "active"
-                }).eq("id", existing.id)
+            if (error) { console.error(error); return }
 
-                setGameId(existing.id)
+            const g = data.game
+
+            if (data.action === 'joined') {
+                setGameId(g.id)
                 setMyColor("b")
                 setStatus("playing")
 
                 const { data: opp } = await supabase
                     .from("profiles")
                     .select("username")
-                    .eq("id", existing.player_white)
+                    .eq("id", g.player_white)
                     .maybeSingle()
                 setOpponentName(opp?.username || "Opponent")
 
             } else {
-                await supabase
-                    .from("games")
-                    .delete()
-                    .eq("player_white", user.id)
-                    .eq("status", "waiting")
-
-                const { data: newGame, error } = await supabase
-                    .from("games")
-                    .insert({ player_white: user.id, status: "waiting", board_state: {} })
-                    .select()
-                    .maybeSingle()
-
-                if (error) { console.error(error); return }
-                if (!newGame) { console.error("newGame is null"); return }
-
-                setGameId(newGame.id)
+                setGameId(g.id)
                 setMyColor("w")
                 setStatus("waiting")
             }
@@ -93,6 +74,7 @@ export default function OnlineGame({ user, onBack }) {
         }
     }
 
+    // ── LISTEN FOR OPPONENT JOINING ──────────────────────────────────
     useEffect(() => {
         if (!gameId || status !== "waiting") return
         const channel = supabase
@@ -117,6 +99,7 @@ export default function OnlineGame({ user, onBack }) {
         return () => supabase.removeChannel(channel)
     }, [gameId, status])
 
+    // ── LISTEN FOR MOVES ─────────────────────────────────────────────
     useEffect(() => {
         if (!gameId || status !== "playing") return
 
@@ -154,6 +137,7 @@ export default function OnlineGame({ user, onBack }) {
         }
     }, [gameId, status])
 
+    // ── DETECT DISCONNECTION ─────────────────────────────────────────
     useEffect(() => {
         if (!gameId || status !== "playing") return
         const channel = supabase.channel("presence-" + gameId, {
