@@ -1,4 +1,4 @@
-import { useState, useEffect, } from "react"
+import { useState, useEffect } from "react"
 import { Chess } from "chess.js"
 import supabase from "./Supabase/supabase.js"
 
@@ -23,39 +23,33 @@ function calculateElo(winnerElo, loserElo) {
 }
 
 export default function OnlineGame({ user, onBack }) {
-    const [game, setGame]         = useState(new Chess())
-    const [gameId, setGameId]     = useState(null)
-    const [myColor, setMyColor]   = useState(null)  // "w" or "b"
-    const [status, setStatus]     = useState("searching") // searching | waiting | playing | finished
-    const [from, setFrom]         = useState(null)
-    const [hints, setHints]       = useState([])
-    const [result, setResult]     = useState(null)  // "win" | "loss" | "draw"
+    const [game, setGame]           = useState(new Chess())
+    const [gameId, setGameId]       = useState(null)
+    const [myColor, setMyColor]     = useState(null)
+    const [status, setStatus]       = useState("searching")
+    const [from, setFrom]           = useState(null)
+    const [hints, setHints]         = useState([])
+    const [result, setResult]       = useState(null)
     const [eloChange, setEloChange] = useState(null)
     const [opponentName, setOpponentName] = useState("")
 
     const files = myColor === "b" ? ["h","g","f","e","d","c","b","a"] : ["a","b","c","d","e","f","g","h"]
     const ranks = myColor === "b" ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1]
 
-    // ── 1. MATCHMAKING ──────────────────────────────────────────────
     useEffect(() => {
         findOrCreateGame()
-        return () => {
-            // cleanup presence on unmount
-            supabase.removeAllChannels()
-        }
+        return () => { supabase.removeAllChannels() }
     }, [])
 
     async function findOrCreateGame() {
         setStatus("searching")
-
         try {
-            // look for a waiting game
             const { data: existing } = await supabase
                 .from("games")
                 .select("*")
                 .eq("status", "waiting")
                 .neq("player_white", user.id)
-                .maybeSingle()  // ← changed from .single()
+                .maybeSingle()
 
             if (existing) {
                 await supabase.from("games").update({
@@ -71,11 +65,10 @@ export default function OnlineGame({ user, onBack }) {
                     .from("profiles")
                     .select("username")
                     .eq("id", existing.player_white)
-                    .maybeSingle()  // ← changed from .single()
+                    .maybeSingle()
                 setOpponentName(opp?.username || "Opponent")
 
             } else {
-                // delete any old waiting games by this user first
                 await supabase
                     .from("games")
                     .delete()
@@ -86,7 +79,7 @@ export default function OnlineGame({ user, onBack }) {
                     .from("games")
                     .insert({ player_white: user.id, status: "waiting", board_state: {} })
                     .select()
-                    .maybeSingle()  // ← changed from .single()
+                    .maybeSingle()
 
                 if (error) { console.error(error); return }
                 if (!newGame) { console.error("newGame is null"); return }
@@ -100,10 +93,8 @@ export default function OnlineGame({ user, onBack }) {
         }
     }
 
-    // ── 2. LISTEN FOR OPPONENT JOINING (if we created the game) ─────
     useEffect(() => {
         if (!gameId || status !== "waiting") return
-
         const channel = supabase
             .channel("game-join-" + gameId)
             .on("postgres_changes", {
@@ -114,21 +105,18 @@ export default function OnlineGame({ user, onBack }) {
             }, async (payload) => {
                 if (payload.new.status === "active") {
                     setStatus("playing")
-                    // get opponent name
                     const { data: opp } = await supabase
                         .from("profiles")
                         .select("username")
                         .eq("id", payload.new.player_black)
-                        .single()
+                        .maybeSingle()
                     setOpponentName(opp?.username || "Opponent")
                 }
             })
             .subscribe()
-
         return () => supabase.removeChannel(channel)
     }, [gameId, status])
 
-    // ── 3. LISTEN FOR MOVES ──────────────────────────────────────────
     useEffect(() => {
         if (!gameId || status !== "playing") return
 
@@ -140,14 +128,12 @@ export default function OnlineGame({ user, onBack }) {
                 table: "moves",
                 filter: `game_id=eq.${gameId}`
             }, (payload) => {
-                // only apply opponent's moves
                 if (payload.new.player_id !== user.id) {
                     applyMove(payload.new.move_notation)
                 }
             })
             .subscribe()
 
-        // ── 4. LISTEN FOR DISCONNECTION/FORFEIT ─────────────────────
         const gameChannel = supabase
             .channel("game-status-" + gameId)
             .on("postgres_changes", {
@@ -168,32 +154,22 @@ export default function OnlineGame({ user, onBack }) {
         }
     }, [gameId, status])
 
-    // ── 5. DETECT DISCONNECTION ──────────────────────────────────────
     useEffect(() => {
         if (!gameId || status !== "playing") return
-
         const channel = supabase.channel("presence-" + gameId, {
             config: { presence: { key: user.id } }
         })
-
         channel
             .on("presence", { event: "leave" }, async ({ leftPresences }) => {
-                // opponent left → they forfeit
                 const opponentLeft = leftPresences.some(p => p !== user.id)
-                if (opponentLeft) {
-                    await finishGame(gameId, user.id) // we win
-                }
+                if (opponentLeft) await finishGame(gameId, user.id)
             })
             .subscribe(async (state) => {
-                if (state === "SUBSCRIBED") {
-                    await channel.track({ user_id: user.id })
-                }
+                if (state === "SUBSCRIBED") await channel.track({ user_id: user.id })
             })
-
         return () => supabase.removeChannel(channel)
     }, [gameId, status])
 
-    // ── APPLY A MOVE TO THE BOARD ────────────────────────────────────
     function applyMove(notation) {
         setGame(prev => {
             const copy = new Chess(prev.fen())
@@ -204,14 +180,11 @@ export default function OnlineGame({ user, onBack }) {
         setHints([])
     }
 
-    // ── HANDLE CLICK ─────────────────────────────────────────────────
     async function handleClick(square) {
         if (status !== "playing") return
-        if (game.turn() !== myColor) return  // not your turn
+        if (game.turn() !== myColor) return
 
-        if (from === square) {
-            setFrom(null); setHints([]); return
-        }
+        if (from === square) { setFrom(null); setHints([]); return }
 
         if (!from) {
             const piece = game.get(square)
@@ -226,19 +199,16 @@ export default function OnlineGame({ user, onBack }) {
                 setHints(game.moves({ square, verbose: true }).map(m => m.to))
                 return
             }
-
             try {
                 const copy = new Chess(game.fen())
                 const move = copy.move({ from, to: square, promotion: "q" })
                 if (move) {
                     setGame(copy)
-                    // save move to supabase → opponent will receive it
                     await supabase.from("moves").insert({
                         game_id: gameId,
                         player_id: user.id,
                         move_notation: move.san
                     })
-                    // check if game over after our move
                     if (copy.isGameOver()) {
                         const winnerId = copy.isDraw() ? null : user.id
                         await finishGame(gameId, winnerId)
@@ -249,7 +219,6 @@ export default function OnlineGame({ user, onBack }) {
         }
     }
 
-    // ── FINISH GAME + UPDATE ELO ─────────────────────────────────────
     async function finishGame(gid, winnerId) {
         await supabase.from("games").update({
             status: "finished",
@@ -261,7 +230,6 @@ export default function OnlineGame({ user, onBack }) {
         if (status === "finished") return
         setStatus("finished")
 
-        // get both players' Elo
         const { data: gameData } = await supabase
             .from("games")
             .select("player_white, player_black")
@@ -277,18 +245,15 @@ export default function OnlineGame({ user, onBack }) {
         const opp = profiles.find(p => p.id !== user.id)
 
         if (winnerId === null) {
-            // draw
             setResult("draw")
             setEloChange(0)
         } else if (winnerId === user.id) {
-            // we won
             const { newWinnerElo, newLoserElo } = calculateElo(me.elo, opp.elo)
             setResult("win")
             setEloChange(newWinnerElo - me.elo)
             await supabase.from("profiles").update({ elo: newWinnerElo }).eq("id", user.id)
             await supabase.from("profiles").update({ elo: newLoserElo }).eq("id", opp.id)
         } else {
-            // we lost
             const { newWinnerElo, newLoserElo } = calculateElo(opp.elo, me.elo)
             setResult("loss")
             setEloChange(newLoserElo - me.elo)
@@ -297,7 +262,6 @@ export default function OnlineGame({ user, onBack }) {
         }
     }
 
-    // ── RENDER ───────────────────────────────────────────────────────
     if (status === "searching") return (
         <div className="app">
             <button className="back-btn" onClick={onBack}>← Menü</button>

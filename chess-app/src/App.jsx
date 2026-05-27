@@ -4,6 +4,7 @@ import Login from './Supabase/login.jsx'
 import Menu from './menu.jsx'
 import ChessGame from './ChessGame.jsx'
 import OnlineGame from './OnlineGame.jsx'
+import Leaderboard from "./Leaderboard.jsx";
 
 export default function App() {
     const [user, setUser] = useState(null)
@@ -29,13 +30,7 @@ export default function App() {
     if (screen === 'bot')      return <ChessGame botMode="black" onBack={() => setScreen('menu')} />
     if (screen === 'botvsbot') return <ChessGame botMode="both"  onBack={() => setScreen('menu')} />
     if (screen === 'online')   return <OnlineGame user={user} onBack={() => setScreen('menu')} />
-    if (screen === 'leaderboard') return (
-        <div className="app">
-            <button className="back-btn" onClick={() => setScreen('menu')}>← Menü</button>
-            <h1 className="title">♟ CHESS.EXE</h1>
-            <p className="status">Leaderboard coming soon!</p>
-        </div>
-    )
+    if (screen === 'leaderboard') return <Leaderboard onBack={() => setScreen('menu')} />
 
     return <Menu user={user} onSelect={setScreen} />
 }
