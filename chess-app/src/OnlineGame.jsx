@@ -33,7 +33,7 @@ export default function OnlineGame({ user, onBack }) {
     const [eloChange, setEloChange] = useState(null)
     const [opponentName, setOpponentName] = useState("")
 
-    // ── REMIS STATUS AUS DER DATENBANK ───────────────────────────────
+    // ── REMIS STATUS (WIRING ÜBER MOVES-SIGNALE) ─────────────────────
     const [drawOfferedBy, setDrawOfferedBy] = useState(null)
 
     // ── TIMER STATES ─────────────────────────────────────────────────
@@ -142,7 +142,6 @@ export default function OnlineGame({ user, onBack }) {
         return myColor === "w" ? data.player_black : data.player_white
     }
 
-    // Aufgeben hat als einziger Button noch eine Sicherheitsabfrage
     async function handleResign() {
         if (!gameId || status !== "playing") return
         const confirmResign = window.confirm("Möchtest du wirklich aufgeben?")
@@ -154,21 +153,23 @@ export default function OnlineGame({ user, onBack }) {
         }
     }
 
-    // ── DIE KORRIGIERTE REMIS-LOGIK (ABSOLUT POP-UP-FREI) ──────────────
+    // ── SYNCHRONES REMIS ÜBER DIE MOVES-TABELLE (POP-UP-FREI) ─────────
     async function handleDrawButton() {
         if (!gameId || status !== "playing") return
 
-        // Fall 1: Der Gegner bietet es an -> Sofort annehmen und beenden!
+        // Wenn der Gegner bereits angeboten hat -> Ich nehme an!
         if (drawOfferedBy && drawOfferedBy !== user.id) {
             await finishGame(gameId, null)
             return
         }
 
-        // Fall 2: Ich biete es an -> Nur in die DB schreiben (Kein Confirm, kein Overlay)
-        await supabase
-            .from("games")
-            .update({ draw_offered_by: user.id })
-            .eq("id", gameId)
+        // Ansonsten: Angebot als Signal abschicken
+        setDrawOfferedBy(user.id)
+        await supabase.from("moves").insert({
+            game_id: gameId,
+            player_id: user.id,
+            move_notation: "[OFFER_DRAW]"
+        })
     }
 
     async function findOrCreateGame() {
@@ -231,7 +232,7 @@ export default function OnlineGame({ user, onBack }) {
         return () => supabase.removeChannel(channel)
     }, [gameId, status])
 
-    // ── LISTEN FOR MOVES & STATUS ────────────────────────────────────
+    // ── LISTEN FOR MOVES & REMIS-SIGNALE ─────────────────────────────
     useEffect(() => {
         if (!gameId || status !== "playing") return
 
@@ -244,10 +245,16 @@ export default function OnlineGame({ user, onBack }) {
                 filter: `game_id=eq.${gameId}`
             }, (payload) => {
                 if (payload.new.player_id !== user.id) {
-                    applyMove(payload.new.move_notation)
-                    setIsGracePeriod(false)
-                    clearInterval(graceTimerRef.current)
-                    setMoveTimeLeft(300)
+                    // Signal abfangen
+                    if (payload.new.move_notation === "[OFFER_DRAW]") {
+                        setDrawOfferedBy(payload.new.player_id)
+                    } else {
+                        applyMove(payload.new.move_notation)
+                        setIsGracePeriod(false)
+                        clearInterval(graceTimerRef.current)
+                        setMoveTimeLeft(300)
+                        setDrawOfferedBy(null) // Verfällt, sobald ein echter Zug kommt
+                    }
                 }
             })
             .subscribe()
@@ -262,9 +269,6 @@ export default function OnlineGame({ user, onBack }) {
             }, (payload) => {
                 if (payload.new.status === "finished") {
                     handleGameOver(payload.new.winner)
-                }
-                if (payload.new.draw_offered_by !== undefined) {
-                    setDrawOfferedBy(payload.new.draw_offered_by)
                 }
             })
             .subscribe()
@@ -329,10 +333,7 @@ export default function OnlineGame({ user, onBack }) {
                     setIsGracePeriod(false)
                     clearInterval(graceTimerRef.current)
                     setMoveTimeLeft(300)
-
-                    if (drawOfferedBy) {
-                        await supabase.from("games").update({ draw_offered_by: null }).eq("id", gameId)
-                    }
+                    setDrawOfferedBy(null) // Eigener Zug resettet Remis-Status lokal
 
                     await supabase.from("moves").insert({
                         game_id: gameId,
