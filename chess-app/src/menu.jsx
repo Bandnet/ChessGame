@@ -41,7 +41,7 @@ export default function Menu({ user, onSelect }) {
                 </button>
 
                 <button className="menu-btn" onClick={() => onSelect('bot')}>
-                    🤖 vs Bot
+                    👤 vs Bot
                     <span className="menu-btn-sub">Play against the AI</span>
                 </button>
 

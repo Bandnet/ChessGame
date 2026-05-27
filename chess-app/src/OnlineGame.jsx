@@ -265,7 +265,7 @@ export default function OnlineGame({ user, onBack }) {
         <div className="app">
             <button className="back-btn" onClick={onBack}>← Menü</button>
             <h1 className="title">♟ CHESS.EXE</h1>
-            <p className="status">🔍 Suche nach Gegner...</p>
+            <p className="status">Suche nach Gegner...</p>
         </div>
     )
 
@@ -286,14 +286,14 @@ export default function OnlineGame({ user, onBack }) {
             <h1 className="title">♟ CHESS.EXE</h1>
             <div className="result-screen">
                 <p className="result-title">
-                    {result === "win"  && "🏆 Du hast gewonnen!"}
-                    {result === "loss" && "💀 Du hast verloren!"}
-                    {result === "draw" && "🤝 Unentschieden!"}
+                    {result === "win"  && "Du hast gewonnen!"}
+                    {result === "loss" && "Du hast verloren!"}
+                    {result === "draw" && "Unentschieden!"}
                 </p>
                 <p className={`elo-change ${eloChange >= 0 ? 'positive' : 'negative'}`}>
                     {eloChange > 0 ? '+' : ''}{eloChange}
                 </p>
-                <button className="menu-btn" onClick={findOrCreateGame}>🔄 Nochmal spielen</button>
+                <button className="menu-btn" onClick={findOrCreateGame}>Nochmal spielen</button>
                 <button className="back-btn" onClick={onBack}>← Menü</button>
             </div>
         </div>
