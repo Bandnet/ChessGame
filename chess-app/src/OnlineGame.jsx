@@ -32,6 +32,7 @@ export default function OnlineGame({ user, onBack }) {
     const [result, setResult]       = useState(null)
     const [eloChange, setEloChange] = useState(null)
     const [opponentName, setOpponentName] = useState("")
+    const [lastMove, setLastMove]   = useState(null) // { from, to }
 
     // ── REMIS STATUS (WIRING ÜBER MOVES-SIGNALE) ─────────────────────
     const [drawOfferedBy, setDrawOfferedBy] = useState(null)
@@ -178,6 +179,7 @@ export default function OnlineGame({ user, onBack }) {
         setGraceTimeLeft(20)
         setIsGracePeriod(true)
         setDrawOfferedBy(null)
+        setLastMove(null)
         try {
             const { data, error } = await supabase.rpc('find_or_create_game', {
                 p_user_id: user.id
@@ -299,7 +301,10 @@ export default function OnlineGame({ user, onBack }) {
     function applyMove(notation) {
         setGame(prev => {
             const copy = new Chess(prev.fen())
-            try { copy.move(notation) } catch(e) {}
+            try {
+                const move = copy.move(notation)
+                if (move) setLastMove({ from: move.from, to: move.to })
+            } catch(e) {}
             return copy
         })
         setFrom(null)
@@ -329,11 +334,12 @@ export default function OnlineGame({ user, onBack }) {
                 const copy = new Chess(game.fen())
                 const move = copy.move({ from, to: square, promotion: "q" })
                 if (move) {
+                    setLastMove({ from: move.from, to: move.to })
                     setGame(copy)
                     setIsGracePeriod(false)
                     clearInterval(graceTimerRef.current)
                     setMoveTimeLeft(300)
-                    setDrawOfferedBy(null) // Eigener Zug resettet Remis-Status lokal
+                    setDrawOfferedBy(null)
 
                     await supabase.from("moves").insert({
                         game_id: gameId,
@@ -494,8 +500,10 @@ export default function OnlineGame({ user, onBack }) {
                                 const isLight = (files.indexOf(file) + rank) % 2 === 0
                                 const isSelected = from === square
                                 const isHint = hints.includes(square)
+                                const isLastMoveSquare = lastMove && (square === lastMove.from || square === lastMove.to)
 
                                 let squareClass = isLight ? "sq light" : "sq dark"
+                                if (isLastMoveSquare) squareClass += " last-move"
                                 if (isSelected) squareClass += " selected"
                                 if (isHint) squareClass += " hint"
 

@@ -36,14 +36,15 @@ export default function ChessGame({ botMode = "none", onBack }) {
     const [history, setHistory] = useState([])
     const [hints, setHints] = useState([])
     const [thinking, setThinking] = useState(false)
+    const [lastMove, setLastMove] = useState(null) // { from, to }
 
     // ── INAKTIVITÄTS-TIMER STATES ─────────────────────────────────────
-    const [moveTimeLeft, setMoveTimeLeft] = useState(300) // 5 Minuten Limit pro Zug
+    const [moveTimeLeft, setMoveTimeLeft] = useState(300)
     const [gameFinished, setGameFinished] = useState(false)
     const [timeWinner, setTimeWinner] = useState(null)
-    const [graceTimeLeft, setGraceTimeLeft] = useState(20) // 20s Schonfrist für den 1. Zug
+    const [graceTimeLeft, setGraceTimeLeft] = useState(20)
     const [isGracePeriod, setIsGracePeriod] = useState(true)
-    const [showDrawConfirm, setShowDrawConfirm] = useState(false) // Terminal-Popup State
+    const [showDrawConfirm, setShowDrawConfirm] = useState(false)
 
     const timerRef = useRef(null)
     const graceTimerRef = useRef(null)
@@ -68,10 +69,11 @@ export default function ChessGame({ botMode = "none", onBack }) {
                 const copy = new Chess(game.fen())
                 const move = getBestMove(copy)
                 if (move) {
-                    copy.move(move)
+                    const result = copy.move(move)
+                    if (result) setLastMove({ from: result.from, to: result.to })
                     setGame(copy)
                     setHistory(h => [...h, move.san])
-                    setMoveTimeLeft(300) // Bot-Zug setzt den Timer für den nächsten Spieler zurück
+                    setMoveTimeLeft(300)
                 }
                 setThinking(false)
             }, 500)
@@ -79,7 +81,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
         }
     }, [game, botMode, gameFinished])
 
-    // ── 20 SEKUNDEN START-SCHONFRIST (NUR FÜR DEN ALLERERSTEN ZUG) ────
+    // ── 20 SEKUNDEN START-SCHONFRIST ────────────────────────────────
     useEffect(() => {
         if (gameFinished || history.length > 0) {
             setIsGracePeriod(false)
@@ -103,7 +105,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
         return () => clearInterval(graceTimerRef.current)
     }, [history, gameFinished])
 
-    // ── MOVE-TIMER LOGIK (TICKT RUNTER & RESETTET BEI JEDEM ZUG) ──────
+    // ── MOVE-TIMER LOGIK ─────────────────────────────────────────────
     useEffect(() => {
         if (game.isGameOver() || gameFinished || thinking || isGracePeriod) {
             clearInterval(timerRef.current)
@@ -127,7 +129,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
         return () => clearInterval(timerRef.current)
     }, [game, gameFinished, thinking, isGracePeriod])
 
-    // ── AUFGEBEN & REMIS FUNCTIONS ──────────────────────────────────
+    // ── AUFGEBEN & REMIS ─────────────────────────────────────────────
     function handleResign() {
         if (game.isGameOver() || gameFinished) return
         const activePlayer = game.turn() === "w" ? "Weiss" : "Schwarz"
@@ -144,7 +146,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
 
     function handleDraw() {
         if (game.isGameOver() || gameFinished) return
-        setShowDrawConfirm(true) // Öffnet das Terminal-Popup
+        setShowDrawConfirm(true)
     }
 
     function confirmDraw(accepted) {
@@ -190,10 +192,10 @@ export default function ChessGame({ botMode = "none", onBack }) {
                 const copy = new Chess(game.fen())
                 const move = copy.move({ from, to: square, promotion: "q" })
                 if (move) {
+                    setLastMove({ from: move.from, to: move.to })
                     setGame(copy)
                     setHistory(h => [...h, move.san])
-
-                    setMoveTimeLeft(300) // Timer wieder komplett auf 5 Minuten zurücksetzen!
+                    setMoveTimeLeft(300)
                     setIsGracePeriod(false)
                     clearInterval(graceTimerRef.current)
                 }
@@ -217,6 +219,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
         setGameFinished(false)
         setTimeWinner(null)
         setShowDrawConfirm(false)
+        setLastMove(null)
     }
 
     function getStatus() {
@@ -266,8 +269,10 @@ export default function ChessGame({ botMode = "none", onBack }) {
                                 const isLight = (files.indexOf(file) + rank) % 2 === 0
                                 const isSelected = from === square
                                 const isHint = hints.includes(square)
+                                const isLastMoveSquare = lastMove && (square === lastMove.from || square === lastMove.to)
 
                                 let squareClass = isLight ? "sq light" : "sq dark"
+                                if (isLastMoveSquare) squareClass += " last-move"
                                 if (isSelected) squareClass += " selected"
                                 if (isHint) squareClass += " hint"
 

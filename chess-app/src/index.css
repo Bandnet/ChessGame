@@ -293,6 +293,9 @@ body {
   color: #39ff1488;
   letter-spacing: 1px;
 }
+.sq.last-move {
+  background-color: rgba(210, 252, 0, 0.3) !important;
+}
 /* ── TERMINAL CONFIRM MODAL ── */
 .terminal-overlay {
   position: fixed;
