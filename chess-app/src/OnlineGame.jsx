@@ -50,8 +50,17 @@ export default function OnlineGame({ user, onBack }) {
     const [graceTimeLeft, setGraceTimeLeft] = useState(20)
     const [isGracePeriod, setIsGracePeriod] = useState(true)
 
-    const timerRef      = useRef(null)
-    const graceTimerRef = useRef(null)
+    const timerRef        = useRef(null)
+    const graceTimerRef   = useRef(null)
+    const graceStartedRef = useRef(false) // ← verhindert doppelten Start
+    const gameIdRef       = useRef(null)  // ← für beforeunload
+    const statusRef       = useRef(null)  // ← für beforeunload
+    const myColorRef      = useRef(null)  // ← für grace period finishGame
+
+    // Refs synchron halten
+    useEffect(() => { gameIdRef.current = gameId }, [gameId])
+    useEffect(() => { statusRef.current = status }, [status])
+    useEffect(() => { myColorRef.current = myColor }, [myColor])
 
     const files = myColor === "b" ? ["h","g","f","e","d","c","b","a"] : ["a","b","c","d","e","f","g","h"]
     const ranks = myColor === "b" ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1]
@@ -65,36 +74,47 @@ export default function OnlineGame({ user, onBack }) {
         }
     }, [])
 
-    // ── VERLASSEN = VERLIEREN ────────────────────────────────────────
+    // ── VERLASSEN = VERLIEREN (auch für waiting) ─────────────────────
     useEffect(() => {
-        if (!gameId || status !== "playing") return
-
         function handleLeave() {
-            navigator.sendBeacon(
-                `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
-                JSON.stringify({ game_id: gameId, user_id: user.id })
-            )
+            const gid = gameIdRef.current
+            const st  = statusRef.current
+            if (!gid) return
+
+            if (st === "waiting") {
+                // Waiting game einfach löschen
+                navigator.sendBeacon(
+                    `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
+                    JSON.stringify({ game_id: gid, user_id: user.id, is_waiting: true })
+                )
+            } else if (st === "playing") {
+                // Laufendes Spiel: Gegner gewinnt
+                navigator.sendBeacon(
+                    `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
+                    JSON.stringify({ game_id: gid, user_id: user.id, is_waiting: false })
+                )
+            }
         }
 
         window.addEventListener("beforeunload", handleLeave)
         return () => window.removeEventListener("beforeunload", handleLeave)
-    }, [gameId, status])
+    }, []) // ← läuft nur einmal, liest immer aktuelle Werte via Refs
 
     // ── 20 SEKUNDEN START-SCHONFRIST ─────────────────────────────────
     useEffect(() => {
-        if (status !== "playing" || game.history().length > 0) {
-            setIsGracePeriod(false)
-            clearInterval(graceTimerRef.current)
-            return
-        }
+        // Nur starten wenn: playing, noch kein Zug, und noch nicht gestartet
+        if (status !== "playing" || graceStartedRef.current) return
+
+        graceStartedRef.current = true
 
         graceTimerRef.current = setInterval(() => {
             setGraceTimeLeft(prev => {
                 if (prev <= 1) {
                     clearInterval(graceTimerRef.current)
                     setIsGracePeriod(false)
-                    if (myColor === "w") {
-                        finishGame(gameId, null)
+                    // Weisser hat nicht gezogen → Draw
+                    if (myColorRef.current === "w") {
+                        finishGame(gameIdRef.current, null)
                     }
                     return 0
                 }
@@ -103,7 +123,16 @@ export default function OnlineGame({ user, onBack }) {
         }, 1000)
 
         return () => clearInterval(graceTimerRef.current)
-    }, [status, game, myColor, gameId])
+    }, [status]) // ← nur abhängig von status, nicht von game
+
+    // ── GRACE PERIOD STOPPEN wenn erster Zug gemacht wird ────────────
+    useEffect(() => {
+        if (game.history().length > 0 && isGracePeriod) {
+            clearInterval(graceTimerRef.current)
+            setIsGracePeriod(false)
+            setGraceTimeLeft(20)
+        }
+    }, [game])
 
     // ── INAKTIVITÄTS-TIMER ───────────────────────────────────────────
     useEffect(() => {
@@ -134,10 +163,10 @@ export default function OnlineGame({ user, onBack }) {
     }, [game, status, myColor, isGracePeriod])
 
     async function handleTimeout() {
-        if (!gameId) return
+        if (!gameIdRef.current) return
         const opponentId = await fetchOpponentId()
         if (opponentId) {
-            await finishGame(gameId, opponentId)
+            await finishGame(gameIdRef.current, opponentId)
         }
     }
 
@@ -145,10 +174,10 @@ export default function OnlineGame({ user, onBack }) {
         const { data } = await supabase
             .from("games")
             .select("player_white, player_black")
-            .eq("id", gameId)
+            .eq("id", gameIdRef.current)
             .single()
         if (!data) return null
-        return myColor === "w" ? data.player_black : data.player_white
+        return myColorRef.current === "w" ? data.player_black : data.player_white
     }
 
     async function handleResign() {
@@ -187,6 +216,7 @@ export default function OnlineGame({ user, onBack }) {
         setDrawOfferedBy(null)
         setLastMove(null)
         setPendingPromotion(null)
+        graceStartedRef.current = false // ← reset für neues Spiel
         try {
             const { data, error } = await supabase.rpc('find_or_create_game', {
                 p_user_id: user.id
@@ -258,8 +288,6 @@ export default function OnlineGame({ user, onBack }) {
                         setDrawOfferedBy(payload.new.player_id)
                     } else {
                         applyMove(payload.new.move_notation)
-                        setIsGracePeriod(false)
-                        clearInterval(graceTimerRef.current)
                         setMoveTimeLeft(300)
                         setDrawOfferedBy(null)
                     }
@@ -332,8 +360,6 @@ export default function OnlineGame({ user, onBack }) {
             if (move) {
                 setLastMove({ from: move.from, to: move.to })
                 setGame(copy)
-                setIsGracePeriod(false)
-                clearInterval(graceTimerRef.current)
                 setMoveTimeLeft(300)
                 setDrawOfferedBy(null)
 
@@ -401,7 +427,6 @@ export default function OnlineGame({ user, onBack }) {
     }
 
     // ── GAME OVER: Elo wird vom DB-Trigger berechnet ─────────────────
-    // Hier nur noch die Anzeige für den Spieler
     async function handleGameOver(winnerId) {
         if (status === "finished") return
         clearInterval(timerRef.current)
