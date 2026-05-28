@@ -52,12 +52,11 @@ export default function OnlineGame({ user, onBack }) {
 
     const timerRef        = useRef(null)
     const graceTimerRef   = useRef(null)
-    const graceStartedRef = useRef(false) // ← verhindert doppelten Start
-    const gameIdRef       = useRef(null)  // ← für beforeunload
-    const statusRef       = useRef(null)  // ← für beforeunload
-    const myColorRef      = useRef(null)  // ← für grace period finishGame
+    const graceStartedRef = useRef(false)
+    const gameIdRef       = useRef(null)
+    const statusRef       = useRef(null)
+    const myColorRef      = useRef(null)
 
-    // Refs synchron halten
     useEffect(() => { gameIdRef.current = gameId }, [gameId])
     useEffect(() => { statusRef.current = status }, [status])
     useEffect(() => { myColorRef.current = myColor }, [myColor])
@@ -82,13 +81,11 @@ export default function OnlineGame({ user, onBack }) {
             if (!gid) return
 
             if (st === "waiting") {
-                // Waiting game einfach löschen
                 navigator.sendBeacon(
                     `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
                     JSON.stringify({ game_id: gid, user_id: user.id, is_waiting: true })
                 )
             } else if (st === "playing") {
-                // Laufendes Spiel: Gegner gewinnt
                 navigator.sendBeacon(
                     `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
                     JSON.stringify({ game_id: gid, user_id: user.id, is_waiting: false })
@@ -98,12 +95,12 @@ export default function OnlineGame({ user, onBack }) {
 
         window.addEventListener("beforeunload", handleLeave)
         return () => window.removeEventListener("beforeunload", handleLeave)
-    }, []) // ← läuft nur einmal, liest immer aktuelle Werte via Refs
+    }, [])
 
     // ── 20 SEKUNDEN START-SCHONFRIST ─────────────────────────────────
     useEffect(() => {
-        // Nur starten wenn: playing, noch kein Zug, und noch nicht gestartet
         if (status !== "playing" || graceStartedRef.current) return
+        if (!gameId || !myColor) return
 
         graceStartedRef.current = true
 
@@ -112,7 +109,6 @@ export default function OnlineGame({ user, onBack }) {
                 if (prev <= 1) {
                     clearInterval(graceTimerRef.current)
                     setIsGracePeriod(false)
-                    // Weisser hat nicht gezogen → Draw
                     if (myColorRef.current === "w") {
                         finishGame(gameIdRef.current, null)
                     }
@@ -123,7 +119,7 @@ export default function OnlineGame({ user, onBack }) {
         }, 1000)
 
         return () => clearInterval(graceTimerRef.current)
-    }, [status]) // ← nur abhängig von status, nicht von game
+    }, [status, gameId, myColor])
 
     // ── GRACE PERIOD STOPPEN wenn erster Zug gemacht wird ────────────
     useEffect(() => {
@@ -208,15 +204,36 @@ export default function OnlineGame({ user, onBack }) {
         })
     }
 
+    // ── GAME ABBRECHEN (searching & waiting) ─────────────────────────
+    async function cancelAndGoBack() {
+        clearInterval(timerRef.current)
+        clearInterval(graceTimerRef.current)
+        const gid = gameIdRef.current
+        if (gid) {
+            await supabase.from("moves").delete().eq("game_id", gid)
+            await supabase.from("games").delete().eq("id", gid)
+        }
+        // Sicherheitshalber alle eigenen waiting games löschen
+        await supabase
+            .from("games")
+            .delete()
+            .eq("player_white", user.id)
+            .eq("status", "waiting")
+        onBack()
+    }
+
     async function findOrCreateGame() {
         setStatus("searching")
+        setGame(new Chess())
         setMoveTimeLeft(300)
         setGraceTimeLeft(20)
         setIsGracePeriod(true)
         setDrawOfferedBy(null)
         setLastMove(null)
         setPendingPromotion(null)
-        graceStartedRef.current = false // ← reset für neues Spiel
+        setFrom(null)
+        setHints([])
+        graceStartedRef.current = false
         try {
             const { data, error } = await supabase.rpc('find_or_create_game', {
                 p_user_id: user.id
@@ -481,7 +498,7 @@ export default function OnlineGame({ user, onBack }) {
 
     if (status === "searching") return (
         <div className="app">
-            <button className="back-btn" onClick={onBack}>← Menü</button>
+            <button className="back-btn" onClick={cancelAndGoBack}>← Menü</button>
             <h1 className="title">♟ CHESS.EXE</h1>
             <p className="status">Suche nach Gegner...</p>
         </div>
@@ -489,10 +506,7 @@ export default function OnlineGame({ user, onBack }) {
 
     if (status === "waiting") return (
         <div className="app">
-            <button className="back-btn" onClick={async () => {
-                await supabase.from("games").delete().eq("id", gameId)
-                onBack()
-            }}>← Menü</button>
+            <button className="back-btn" onClick={cancelAndGoBack}>← Menü</button>
             <h1 className="title">♟ CHESS.EXE</h1>
             <p className="status">⏳ Warte auf Gegner...</p>
             <p className="status">Du spielst Weiss</p>
