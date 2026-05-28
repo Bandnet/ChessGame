@@ -40,7 +40,7 @@ export default function OnlineGame({ user, onBack }) {
     const [eloChange, setEloChange] = useState(null)
     const [opponentName, setOpponentName] = useState("")
     const [lastMove, setLastMove]   = useState(null)
-    const [pendingPromotion, setPendingPromotion] = useState(null) // { from, to }
+    const [pendingPromotion, setPendingPromotion] = useState(null)
 
     // ── REMIS STATUS ─────────────────────────────────────────────────
     const [drawOfferedBy, setDrawOfferedBy] = useState(null)
@@ -400,6 +400,8 @@ export default function OnlineGame({ user, onBack }) {
         }).eq("id", gid)
     }
 
+    // ── GAME OVER: Elo wird vom DB-Trigger berechnet ─────────────────
+    // Hier nur noch die Anzeige für den Spieler
     async function handleGameOver(winnerId) {
         if (status === "finished") return
         clearInterval(timerRef.current)
@@ -427,14 +429,10 @@ export default function OnlineGame({ user, onBack }) {
             const { newWinnerElo, newLoserElo } = calculateElo(me.elo, opp.elo)
             setResult("win")
             setEloChange(newWinnerElo - me.elo)
-            await supabase.from("profiles").update({ elo: newWinnerElo }).eq("id", user.id)
-            await supabase.from("profiles").update({ elo: newLoserElo }).eq("id", opp.id)
         } else {
             const { newWinnerElo, newLoserElo } = calculateElo(opp.elo, me.elo)
             setResult("loss")
             setEloChange(newLoserElo - me.elo)
-            await supabase.from("profiles").update({ elo: newWinnerElo }).eq("id", opp.id)
-            await supabase.from("profiles").update({ elo: newLoserElo }).eq("id", user.id)
         }
     }
 
