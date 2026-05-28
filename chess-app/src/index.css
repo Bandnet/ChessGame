@@ -207,6 +207,7 @@ body {
   color: #ff3939;
   box-shadow: 0 0 8px #ff393944;
 }
+
 /* ── IN-GAME DRAW NOTIFICATION ── */
 .draw-notification-banner {
   color: #ffcc00;
@@ -222,7 +223,6 @@ body {
   animation: matrix-blink 1.2s infinite alternate;
 }
 
-/* Wenn ich das Angebot gesendet habe (Wartend) */
 .matrix-btn.draw-pending {
   border-color: #39ff1444;
   color: #39ff1444;
@@ -232,7 +232,6 @@ body {
   opacity: 0.6;
 }
 
-/* Wenn der Gegner mir ein Angebot macht (Aktion erforderlich!) */
 .matrix-btn.draw-accept {
   border-color: #ffcc00;
   color: #ffcc00;
@@ -240,11 +239,12 @@ body {
   text-shadow: 0 0 5px rgba(255, 204, 0, 0.6);
   animation: matrix-blink 1s infinite alternate;
 }
-
 .matrix-btn.draw-accept:hover {
   background: rgba(255, 204, 0, 0.15);
   box-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
 }
+
+/* ── LEADERBOARD RANK BADGE ── */
 .my-rank-badge {
   display: flex;
   justify-content: space-between;
@@ -293,9 +293,7 @@ body {
   color: #39ff1488;
   letter-spacing: 1px;
 }
-.sq.last-move {
-  background-color: rgba(210, 252, 0, 0.3) !important;
-}
+
 /* ── TERMINAL CONFIRM MODAL ── */
 .terminal-overlay {
   position: fixed;
@@ -303,11 +301,11 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.85); /* Verdunkelt den Hintergrund */
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999; /* Immer ganz oben */
+  z-index: 9999;
 }
 
 .terminal-popup {
@@ -326,7 +324,7 @@ body {
 }
 
 .terminal-popup::before {
-  content: "[ SYSTEM REQUEST - REMIS ]";
+  content: "[ SYSTEM REQUEST ]";
   position: absolute;
   top: -12px;
   left: 15px;
@@ -351,7 +349,6 @@ body {
   gap: 16px;
 }
 
-/* Wiederverwendung deiner matrix-btn Styles mit Anpassung für das Popup */
 .terminal-popup-buttons .matrix-btn {
   padding: 8px 20px;
   font-size: 13px;
@@ -367,6 +364,40 @@ body {
   border-color: #ff3939;
   color: #ff3939;
   box-shadow: 0 0 12px rgba(255, 57, 57, 0.6);
+}
+
+/* ── PROMOTION PICKER ── */
+.promotion-choices {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.promotion-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(57, 255, 20, 0.05);
+  border: 1px solid #39ff1466;
+  border-radius: 6px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.promotion-btn:hover {
+  background: rgba(57, 255, 20, 0.15);
+  border-color: #39ff14;
+  box-shadow: 0 0 10px #39ff1444;
+}
+.promotion-btn .piece {
+  font-size: 2rem;
+}
+.promotion-label {
+  font-size: 0.7rem;
+  color: #39ff1488;
+  letter-spacing: 1px;
 }
 
 /* ── RESULT SCREEN ── */
@@ -403,12 +434,12 @@ body {
   text-shadow: 0 0 12px #ff3939;
 }
 
-/* ── NEW: GAME ALERTS & TIMER WARNINGS ── */
+/* ── GAME ALERTS & TIMER WARNINGS ── */
 .game-alerts {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 40px; /* Hält die Layout-Höhe stabil */
+  height: 40px;
   margin-bottom: 5px;
 }
 
@@ -435,7 +466,7 @@ body {
   animation: matrix-blink 0.8s infinite alternate;
 }
 
-/* ── NEW: BUTTONS BOTTOM (MATRIX STYLE) ── */
+/* ── ACTION BUTTONS ── */
 .action-buttons-bottom {
   display: flex;
   justify-content: center;
@@ -486,7 +517,7 @@ body {
   cursor: not-allowed;
 }
 
-/* ── BOARD RESPONSIVE ── */
+/* ── BOARD ── */
 .main {
   display: flex;
   flex-direction: column;
@@ -522,11 +553,19 @@ body {
   transition: background 0.1s;
 }
 
+/* Base square colors — lowest priority */
 .sq.light { background: #1a3a1a; }
 .sq.dark  { background: #0d1f0d; }
-.sq.selected { background: #39ff1466 !important; }
+
+/* Last move highlight — sits above light/dark */
+.sq.last-move { background: rgba(210, 252, 0, 0.28); }
+
+/* Hint squares — sit above last-move */
 .sq.hint.light { background: #2a4a2a; }
 .sq.hint.dark  { background: #1a2f1a; }
+
+/* Selected — always wins, hence !important */
+.sq.selected { background: #39ff1466 !important; }
 
 .piece {
   font-size: min(40px, 7vw);
@@ -614,7 +653,7 @@ body {
   margin-right: 3px;
 }
 
-/* ── LEADERBOARD & INFO ── */
+/* ── ONLINE INFO & LEADERBOARD ── */
 .online-info {
   display: flex;
   flex-direction: column;
@@ -663,12 +702,13 @@ body {
 .lb-name { flex: 1; color: #39ff14; }
 .lb-elo { color: #39ff14; text-shadow: 0 0 6px #39ff14; }
 
-/* ── ANIMATIONS & MEDIA QUERIES ── */
+/* ── ANIMATIONS ── */
 @keyframes matrix-blink {
   from { opacity: 1; }
   to { opacity: 0.5; }
 }
 
+/* ── RESPONSIVE ── */
 @media (min-width: 500px) {
   .online-info {
     flex-direction: row;

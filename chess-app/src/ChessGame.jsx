@@ -30,13 +30,21 @@ function getBestMove(game) {
     return scored[0].move
 }
 
+const PROMOTION_PIECES = [
+    { key: "q", white: "♕", black: "♛", name: "Dame" },
+    { key: "r", white: "♖", black: "♜", name: "Turm" },
+    { key: "b", white: "♗", black: "♝", name: "Läufer" },
+    { key: "n", white: "♘", black: "♞", name: "Springer" },
+]
+
 export default function ChessGame({ botMode = "none", onBack }) {
     const [game, setGame] = useState(new Chess())
     const [from, setFrom] = useState(null)
     const [history, setHistory] = useState([])
     const [hints, setHints] = useState([])
     const [thinking, setThinking] = useState(false)
-    const [lastMove, setLastMove] = useState(null) // { from, to }
+    const [lastMove, setLastMove] = useState(null)
+    const [pendingPromotion, setPendingPromotion] = useState(null) // { from, to, color }
 
     // ── INAKTIVITÄTS-TIMER STATES ─────────────────────────────────────
     const [moveTimeLeft, setMoveTimeLeft] = useState(300)
@@ -160,9 +168,40 @@ export default function ChessGame({ botMode = "none", onBack }) {
         }
     }
 
+    // ── PROMOTION HELPERS ────────────────────────────────────────────
+    function isPromotionMove(fromSq, toSq) {
+        const piece = game.get(fromSq)
+        if (!piece || piece.type !== "p") return false
+        const toRank = toSq[1]
+        return (piece.color === "w" && toRank === "8") || (piece.color === "b" && toRank === "1")
+    }
+
+    function applyMove(fromSq, toSq, promotion) {
+        try {
+            const copy = new Chess(game.fen())
+            const move = copy.move({ from: fromSq, to: toSq, promotion })
+            if (move) {
+                setLastMove({ from: move.from, to: move.to })
+                setGame(copy)
+                setHistory(h => [...h, move.san])
+                setMoveTimeLeft(300)
+                setIsGracePeriod(false)
+                clearInterval(graceTimerRef.current)
+            }
+        } catch(e) {}
+        setFrom(null)
+        setHints([])
+        setPendingPromotion(null)
+    }
+
+    function handlePromotionChoice(pieceKey) {
+        if (!pendingPromotion) return
+        applyMove(pendingPromotion.from, pendingPromotion.to, pieceKey)
+    }
+
     // ── KLICK LOGIK ──────────────────────────────────────────────────
     function handleClick(square) {
-        if (thinking || gameFinished) return
+        if (thinking || gameFinished || pendingPromotion) return
         if (botMode === "both") return
         if (botMode === "black" && game.turn() === "b") return
 
@@ -188,20 +227,18 @@ export default function ChessGame({ botMode = "none", onBack }) {
                 return
             }
 
-            try {
-                const copy = new Chess(game.fen())
-                const move = copy.move({ from, to: square, promotion: "q" })
-                if (move) {
-                    setLastMove({ from: move.from, to: move.to })
-                    setGame(copy)
-                    setHistory(h => [...h, move.san])
-                    setMoveTimeLeft(300)
-                    setIsGracePeriod(false)
-                    clearInterval(graceTimerRef.current)
+            if (hints.includes(square)) {
+                if (isPromotionMove(from, square)) {
+                    setPendingPromotion({ from, to: square, color: game.turn() })
+                    setFrom(null)
+                    setHints([])
+                } else {
+                    applyMove(from, square, "q")
                 }
-            } catch(e) {}
-            setFrom(null)
-            setHints([])
+            } else {
+                setFrom(null)
+                setHints([])
+            }
         }
     }
 
@@ -220,6 +257,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
         setTimeWinner(null)
         setShowDrawConfirm(false)
         setLastMove(null)
+        setPendingPromotion(null)
     }
 
     function getStatus() {
@@ -315,6 +353,30 @@ export default function ChessGame({ botMode = "none", onBack }) {
                     </div>
                 </div>
             </div>
+
+            {/* ── PROMOTION PICKER POPUP ── */}
+            {pendingPromotion && (
+                <div className="terminal-overlay">
+                    <div className="terminal-popup">
+                        <p className="terminal-popup-text">Umwandlung — wähle eine Figur:</p>
+                        <div className="promotion-choices">
+                            {PROMOTION_PIECES.map(p => (
+                                <button
+                                    key={p.key}
+                                    className="promotion-btn"
+                                    onClick={() => handlePromotionChoice(p.key)}
+                                    title={p.name}
+                                >
+                                    <span className={pendingPromotion.color === "w" ? "piece white" : "piece black"}>
+                                        {pendingPromotion.color === "w" ? p.white : p.black}
+                                    </span>
+                                    <span className="promotion-label">{p.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── TERMINAL CONFIRM POPUP ── */}
             {showDrawConfirm && (

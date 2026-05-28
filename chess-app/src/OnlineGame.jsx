@@ -22,6 +22,13 @@ function calculateElo(winnerElo, loserElo) {
     }
 }
 
+const PROMOTION_PIECES = [
+    { key: "q", white: "♕", black: "♛", name: "Dame" },
+    { key: "r", white: "♖", black: "♜", name: "Turm" },
+    { key: "b", white: "♗", black: "♝", name: "Läufer" },
+    { key: "n", white: "♘", black: "♞", name: "Springer" },
+]
+
 export default function OnlineGame({ user, onBack }) {
     const [game, setGame]           = useState(new Chess())
     const [gameId, setGameId]       = useState(null)
@@ -32,9 +39,10 @@ export default function OnlineGame({ user, onBack }) {
     const [result, setResult]       = useState(null)
     const [eloChange, setEloChange] = useState(null)
     const [opponentName, setOpponentName] = useState("")
-    const [lastMove, setLastMove]   = useState(null) // { from, to }
+    const [lastMove, setLastMove]   = useState(null)
+    const [pendingPromotion, setPendingPromotion] = useState(null) // { from, to }
 
-    // ── REMIS STATUS (WIRING ÜBER MOVES-SIGNALE) ─────────────────────
+    // ── REMIS STATUS ─────────────────────────────────────────────────
     const [drawOfferedBy, setDrawOfferedBy] = useState(null)
 
     // ── TIMER STATES ─────────────────────────────────────────────────
@@ -42,8 +50,8 @@ export default function OnlineGame({ user, onBack }) {
     const [graceTimeLeft, setGraceTimeLeft] = useState(20)
     const [isGracePeriod, setIsGracePeriod] = useState(true)
 
-    const timerRef                   = useRef(null)
-    const graceTimerRef              = useRef(null)
+    const timerRef      = useRef(null)
+    const graceTimerRef = useRef(null)
 
     const files = myColor === "b" ? ["h","g","f","e","d","c","b","a"] : ["a","b","c","d","e","f","g","h"]
     const ranks = myColor === "b" ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1]
@@ -97,7 +105,7 @@ export default function OnlineGame({ user, onBack }) {
         return () => clearInterval(graceTimerRef.current)
     }, [status, game, myColor, gameId])
 
-    // ── INAKTIVITÄTS-TIMER LOGIK ─────────────────────────────────────
+    // ── INAKTIVITÄTS-TIMER ───────────────────────────────────────────
     useEffect(() => {
         if (status !== "playing" || isGracePeriod) {
             clearInterval(timerRef.current)
@@ -154,17 +162,15 @@ export default function OnlineGame({ user, onBack }) {
         }
     }
 
-    // ── SYNCHRONES REMIS ÜBER DIE MOVES-TABELLE (POP-UP-FREI) ─────────
+    // ── REMIS ────────────────────────────────────────────────────────
     async function handleDrawButton() {
         if (!gameId || status !== "playing") return
 
-        // Wenn der Gegner bereits angeboten hat -> Ich nehme an!
         if (drawOfferedBy && drawOfferedBy !== user.id) {
             await finishGame(gameId, null)
             return
         }
 
-        // Ansonsten: Angebot als Signal abschicken
         setDrawOfferedBy(user.id)
         await supabase.from("moves").insert({
             game_id: gameId,
@@ -180,6 +186,7 @@ export default function OnlineGame({ user, onBack }) {
         setIsGracePeriod(true)
         setDrawOfferedBy(null)
         setLastMove(null)
+        setPendingPromotion(null)
         try {
             const { data, error } = await supabase.rpc('find_or_create_game', {
                 p_user_id: user.id
@@ -247,7 +254,6 @@ export default function OnlineGame({ user, onBack }) {
                 filter: `game_id=eq.${gameId}`
             }, (payload) => {
                 if (payload.new.player_id !== user.id) {
-                    // Signal abfangen
                     if (payload.new.move_notation === "[OFFER_DRAW]") {
                         setDrawOfferedBy(payload.new.player_id)
                     } else {
@@ -255,7 +261,7 @@ export default function OnlineGame({ user, onBack }) {
                         setIsGracePeriod(false)
                         clearInterval(graceTimerRef.current)
                         setMoveTimeLeft(300)
-                        setDrawOfferedBy(null) // Verfällt, sobald ein echter Zug kommt
+                        setDrawOfferedBy(null)
                     }
                 }
             })
@@ -311,8 +317,49 @@ export default function OnlineGame({ user, onBack }) {
         setHints([])
     }
 
+    // ── PROMOTION HELPERS ────────────────────────────────────────────
+    function isPromotionMove(fromSq, toSq) {
+        const piece = game.get(fromSq)
+        if (!piece || piece.type !== "p") return false
+        const toRank = toSq[1]
+        return (piece.color === "w" && toRank === "8") || (piece.color === "b" && toRank === "1")
+    }
+
+    async function commitMove(fromSq, toSq, promotion) {
+        try {
+            const copy = new Chess(game.fen())
+            const move = copy.move({ from: fromSq, to: toSq, promotion })
+            if (move) {
+                setLastMove({ from: move.from, to: move.to })
+                setGame(copy)
+                setIsGracePeriod(false)
+                clearInterval(graceTimerRef.current)
+                setMoveTimeLeft(300)
+                setDrawOfferedBy(null)
+
+                await supabase.from("moves").insert({
+                    game_id: gameId,
+                    player_id: user.id,
+                    move_notation: move.san
+                })
+                if (copy.isGameOver()) {
+                    const winnerId = copy.isDraw() ? null : user.id
+                    await finishGame(gameId, winnerId)
+                }
+            }
+        } catch(e) {}
+        setFrom(null)
+        setHints([])
+        setPendingPromotion(null)
+    }
+
+    async function handlePromotionChoice(pieceKey) {
+        if (!pendingPromotion) return
+        await commitMove(pendingPromotion.from, pendingPromotion.to, pieceKey)
+    }
+
     async function handleClick(square) {
-        if (status !== "playing") return
+        if (status !== "playing" || pendingPromotion) return
         if (game.turn() !== myColor) return
 
         if (from === square) { setFrom(null); setHints([]); return }
@@ -330,29 +377,19 @@ export default function OnlineGame({ user, onBack }) {
                 setHints(game.moves({ square, verbose: true }).map(m => m.to))
                 return
             }
-            try {
-                const copy = new Chess(game.fen())
-                const move = copy.move({ from, to: square, promotion: "q" })
-                if (move) {
-                    setLastMove({ from: move.from, to: move.to })
-                    setGame(copy)
-                    setIsGracePeriod(false)
-                    clearInterval(graceTimerRef.current)
-                    setMoveTimeLeft(300)
-                    setDrawOfferedBy(null)
 
-                    await supabase.from("moves").insert({
-                        game_id: gameId,
-                        player_id: user.id,
-                        move_notation: move.san
-                    })
-                    if (copy.isGameOver()) {
-                        const winnerId = copy.isDraw() ? null : user.id
-                        await finishGame(gameId, winnerId)
-                    }
+            if (hints.includes(square)) {
+                if (isPromotionMove(from, square)) {
+                    setPendingPromotion({ from, to: square })
+                    setFrom(null)
+                    setHints([])
+                } else {
+                    await commitMove(from, square, "q")
                 }
-            } catch(e) {}
-            setFrom(null); setHints([])
+            } else {
+                setFrom(null)
+                setHints([])
+            }
         }
     }
 
@@ -529,6 +566,30 @@ export default function OnlineGame({ user, onBack }) {
                     </div>
                 </div>
             </div>
+
+            {/* ── PROMOTION PICKER POPUP ── */}
+            {pendingPromotion && (
+                <div className="terminal-overlay">
+                    <div className="terminal-popup">
+                        <p className="terminal-popup-text">Umwandlung — wähle eine Figur:</p>
+                        <div className="promotion-choices">
+                            {PROMOTION_PIECES.map(p => (
+                                <button
+                                    key={p.key}
+                                    className="promotion-btn"
+                                    onClick={() => handlePromotionChoice(p.key)}
+                                    title={p.name}
+                                >
+                                    <span className={myColor === "w" ? "piece white" : "piece black"}>
+                                        {myColor === "w" ? p.white : p.black}
+                                    </span>
+                                    <span className="promotion-label">{p.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
