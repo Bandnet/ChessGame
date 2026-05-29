@@ -80,10 +80,11 @@ export default function OnlineGame({ user, onBack }) {
             const st  = statusRef.current
             if (!gid) return
 
-            if (st === "waiting") {
+            if (st === "waiting" || st === "searching") {
+                // Delete the waiting game row via beacon
                 navigator.sendBeacon(
-                    `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
-                    JSON.stringify({ game_id: gid, user_id: user.id, is_waiting: true })
+                    `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/delete_waiting_game`,
+                    JSON.stringify({ game_id: gid, user_id: user.id })
                 )
             } else if (st === "playing") {
                 navigator.sendBeacon(
@@ -208,21 +209,35 @@ export default function OnlineGame({ user, onBack }) {
     async function cancelAndGoBack() {
         clearInterval(timerRef.current)
         clearInterval(graceTimerRef.current)
+        supabase.removeAllChannels()
+
         const gid = gameIdRef.current
-        if (gid) {
+        const st  = statusRef.current
+
+        if (gid && (st === "waiting" || st === "searching")) {
+            // Hard delete: remove moves + game row entirely
             await supabase.from("moves").delete().eq("game_id", gid)
             await supabase.from("games").delete().eq("id", gid)
         }
-        // Sicherheitshalber alle eigenen waiting games löschen
+
+        // Safety net: delete ALL waiting games for this user
         await supabase
             .from("games")
             .delete()
             .eq("player_white", user.id)
             .eq("status", "waiting")
+
         onBack()
     }
 
     async function findOrCreateGame() {
+        // ── SAFETY NET: delete any leftover waiting games for this user ──
+        await supabase
+            .from("games")
+            .delete()
+            .eq("player_white", user.id)
+            .eq("status", "waiting")
+
         setStatus("searching")
         setGame(new Chess())
         setMoveTimeLeft(300)
@@ -234,6 +249,7 @@ export default function OnlineGame({ user, onBack }) {
         setFrom(null)
         setHints([])
         graceStartedRef.current = false
+
         try {
             const { data, error } = await supabase.rpc('find_or_create_game', {
                 p_user_id: user.id
@@ -468,11 +484,11 @@ export default function OnlineGame({ user, onBack }) {
             setResult("draw")
             setEloChange(0)
         } else if (winnerId === user.id) {
-            const { newWinnerElo, newLoserElo } = calculateElo(me.elo, opp.elo)
+            const { newWinnerElo } = calculateElo(me.elo, opp.elo)
             setResult("win")
             setEloChange(newWinnerElo - me.elo)
         } else {
-            const { newWinnerElo, newLoserElo } = calculateElo(opp.elo, me.elo)
+            const { newLoserElo } = calculateElo(opp.elo, me.elo)
             setResult("loss")
             setEloChange(newLoserElo - me.elo)
         }
