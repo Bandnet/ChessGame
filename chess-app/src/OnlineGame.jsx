@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from "react"
 import { Chess } from "chess.js"
 import supabase from "./Supabase/supabase.js"
 
+// ── PASTE YOUR VALUES FROM src/Supabase/supabase.js ──────────────────────────
+const SUPABASE_URL  = "https://dnnaesztxtafkqdithic.supabase.co"
+const SUPABASE_ANON = "YOUR_ANON_KEY_HERE"   // ← replace this
+// ─────────────────────────────────────────────────────────────────────────────
+
 const PIECES = {
     wK:"♔", wQ:"♕", wR:"♖", wB:"♗", wN:"♘", wP:"♙",
     bK:"♚", bQ:"♛", bR:"♜", bB:"♝", bN:"♞", bP:"♟"
@@ -73,20 +78,39 @@ export default function OnlineGame({ user, onBack }) {
         }
     }, [])
 
-    // ── VERLASSEN = VERLIEREN (auch für waiting) ─────────────────────
+    // ── VERLASSEN: direkt per Supabase REST löschen (kein Edge Function nötig) ──
     useEffect(() => {
         function handleLeave() {
             const gid = gameIdRef.current
             const st  = statusRef.current
-            if (!gid) return
 
-            if (st === "waiting" || st === "searching") {
-                // Delete the waiting game row via beacon
-                navigator.sendBeacon(
-                    `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/delete_waiting_game`,
-                    JSON.stringify({ game_id: gid, user_id: user.id })
-                )
-            } else if (st === "playing") {
+            // Immer: alle waiting-games dieses Users löschen (auch ohne gid)
+            // sendBeacon mit Supabase REST DELETE + query filter
+            const headers = {
+                "Content-Type":  "application/json",
+                "apikey":        SUPABASE_ANON,
+                "Authorization": `Bearer ${SUPABASE_ANON}`,
+                "Prefer":        "return=minimal"
+            }
+
+            // DELETE alle waiting games dieses Users
+            navigator.sendBeacon(
+                `${SUPABASE_URL}/rest/v1/games?player_white=eq.${user.id}&status=eq.waiting`,
+                new Blob([JSON.stringify({})], { type: "application/json" })
+            )
+
+            // sendBeacon kann keine custom headers setzen → fetch mit keepalive nutzen
+            // (keepalive funktioniert auch beim Tab-Schliessen für kleine Payloads)
+            fetch(
+                `${SUPABASE_URL}/rest/v1/games?player_white=eq.${user.id}&status=eq.waiting`,
+                {
+                    method:    "DELETE",
+                    keepalive: true,
+                    headers
+                }
+            ).catch(() => {})
+
+            if (gid && st === "playing") {
                 navigator.sendBeacon(
                     `https://dnnaesztxtafkqdithic.supabase.co/functions/v1/forfeit_game`,
                     JSON.stringify({ game_id: gid, user_id: user.id, is_waiting: false })
@@ -211,16 +235,7 @@ export default function OnlineGame({ user, onBack }) {
         clearInterval(graceTimerRef.current)
         supabase.removeAllChannels()
 
-        const gid = gameIdRef.current
-        const st  = statusRef.current
-
-        if (gid && (st === "waiting" || st === "searching")) {
-            // Hard delete: remove moves + game row entirely
-            await supabase.from("moves").delete().eq("game_id", gid)
-            await supabase.from("games").delete().eq("id", gid)
-        }
-
-        // Safety net: delete ALL waiting games for this user
+        // DELETE alle waiting games dieses Users (zuverlässig via await)
         await supabase
             .from("games")
             .delete()
