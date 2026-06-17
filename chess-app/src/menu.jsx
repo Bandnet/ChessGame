@@ -74,25 +74,26 @@ export default function Menu({ user, onSelect }) {
 
             {profile && (
                 <div className="profile-badge">
-                    <span>👤
-                        {profile.username}
-                        {profile.badges && profile.badges.length > 0 && (
-                            <span className="lb-badges-container"
-                                  style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
-                                    {/* NEU: Filtert Duplikate und nutzt die neue getBadgeLabel Funktion */}
-                                {filterDuplicateBadges(profile.badges).slice(0, 3).map((badge, idx) => (
-                                    <span
-                                        key={idx}
-                                        style={{fontSize: '10px', opacity: 0.8, color: '#39ff14'}}
-                                        title={badge.season_name}
-                                    >
-                                            {getBadgeLabel(badge.rank_tier)}
-                                        </span>
-                                ))}
-                            </span>
-                        )}
+                    {/* Obere Zeile: Name links, Elo rechts */}
+                    <div className="profile-meta">
+                        <span className="profile-username">👤 {profile.username}</span>
+                        <span className="profile-elo">⚡ Elo: {profile.elo}</span>
+                    </div>
+
+                    {/* Untere Zeile: Nur die Badges, falls vorhanden */}
+                    {profile.badges && profile.badges.length > 0 && (
+                        <div className="profile-badges-wrapper">
+                            {filterDuplicateBadges(profile.badges).slice(0, 3).map((badge, idx) => (
+                                <span
+                                    key={idx}
+                                    className="profile-badge-item"
+                                    title={badge.season_name}
+                                >
+                        {getBadgeLabel(badge.rank_tier)}
                     </span>
-                    <span>⚡ Elo: {profile.elo}</span>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
