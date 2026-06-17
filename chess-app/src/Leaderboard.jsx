@@ -38,7 +38,7 @@ function filterDuplicateBadges(badgesArray) {
                 b.rank_tier.startsWith('TOP_') &&
                 parseInt(b.rank_tier.replace('TOP_', ''), 10) <= 25
             );
-            return !hatExaktenRang; // Wenn exakter Rang existiert, fliegt TOP_50 raus
+            return !hatExaktenRang;
         }
         return true;
     });
@@ -56,6 +56,9 @@ export default function Leaderboard({ onBack, user }) {
     const [myProfile, setMyProfile] = useState(null)
     const [loadingRank, setLoadingRank] = useState(true)
     const [rankErrorMsg, setRankErrorMsg] = useState(null)
+
+    // Trage hier deine exakte Supabase User-UUID ein
+    const ADMIN_ID = "4260345b-edac-4666-992f-d6a9e1d139c4";
 
     const targetId = user?.id || user?.user?.id || user?.data?.user?.id || user?.data?.id;
 
@@ -76,6 +79,13 @@ export default function Leaderboard({ onBack, user }) {
     async function runMonthlySeasonReset() {
         const confirmation = window.confirm("Möchtest du die aktuelle Saison wirklich beenden? Alle Elos werden auf 1200 zurückgesetzt!");
         if (!confirmation) return;
+
+        // Sicherheitsabfrage per Passwort
+        const password = window.prompt("Bitte Admin-Passwort eingeben, um den Reset zu bestätigen:");
+        if (password !== "6769") {
+            alert("Falsches Passwort! Reset abgebrochen.");
+            return;
+        }
 
         const now = new Date();
         const seasonName = `Saison_${now.getFullYear()}_${now.getMonth() + 1}`;
@@ -203,6 +213,8 @@ export default function Leaderboard({ onBack, user }) {
     const totalPages = Math.ceil(total / PAGE_SIZE)
     const globalOffset = page * PAGE_SIZE
 
+    const isAdmin = user?.id === ADMIN_ID;
+
     return (
         <div className="app">
             <button className="back-btn" onClick={onBack}>← Menü</button>
@@ -243,7 +255,6 @@ export default function Leaderboard({ onBack, user }) {
                                     width: '100%'
                                 }}
                             >
-                                {/* FIX 1: Filter jetzt auch beim eigenen Profil angewendet */}
                                 {filterDuplicateBadges(myBadges).map((badge, idx) => (
                                     <span
                                         key={idx}
@@ -282,7 +293,6 @@ export default function Leaderboard({ onBack, user }) {
                                     {player.username}
                                     {player.badges && player.badges.length > 0 && (
                                         <span style={{ marginLeft: '8px', display: 'inline-flex', gap: '4px' }}>
-                                            {/* FIX 2: Filter hier für die Top 5 Box eingebaut! */}
                                             {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
                                                 <span key={idx} style={{ fontSize: '10px', color: '#39ff14' }} title={badge.season_name}>
                                                     {getBadgeLabel(badge.rank_tier)}
@@ -316,8 +326,7 @@ export default function Leaderboard({ onBack, user }) {
                             <span className="lb-name">
                                 {player.username}
                                 {player.badges && player.badges.length > 0 && (
-                                    <span style={{ marginLeft: '6px', display: 'inline-flex', gap: '4px' }}>
-                                        {/* FIX 3: Nutzt jetzt auch die saubere Hilfsfunktion */}
+                                    <span style={{ marginLeft: '8px', display: 'inline-flex', gap: '4px' }}>
                                         {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
                                             <span
                                                 key={idx}
@@ -356,6 +365,37 @@ export default function Leaderboard({ onBack, user }) {
                         disabled={page >= totalPages - 1}
                     >
                         Weiter →
+                    </button>
+                </div>
+            )}
+
+            {/* NEU: Geschützter Admin-Bereich ganz unten */}
+            {isAdmin && (
+                <div className="admin-panel" style={{
+                    marginTop: '40px',
+                    padding: '20px',
+                    border: '1px dashed #ff1414',
+                    background: 'rgba(255, 20, 20, 0.05)',
+                    borderRadius: '6px',
+                    textAlign: 'center'
+                }}>
+                    <h3 style={{ color: '#ff1414', margin: '0 0 10px 0', fontSize: '14px', letterSpacing: '1px' }}>
+                        🚨 SYSTEM CONTROL (ADMIN ONLY)
+                    </h3>
+                    <button
+                        className="matrix-btn resign"
+                        onClick={runMonthlySeasonReset}
+                        style={{
+                            background: 'rgba(255, 20, 20, 0.15)',
+                            border: '1px solid #ff1414',
+                            color: '#ff1414',
+                            padding: '10px 20px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            letterSpacing: '1px'
+                        }}
+                    >
+                        TRIGGER SEASONAL RESET
                     </button>
                 </div>
             )}
