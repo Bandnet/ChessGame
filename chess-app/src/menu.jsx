@@ -1,8 +1,17 @@
 import supabase from './Supabase/supabase.js'
 import { useEffect, useState } from 'react'
 
-export default function Menu({ user, onSelect }) {
-    const [profile, setProfile] = useState(null)
+// HILFSFUNKTION 1: Übersetzt das Tier in ein schickes Text-Label (inkl. Top 25)
+function getBadgeLabel(rankTier) {
+    if (!rankTier) return '';
+
+    if (rankTier.startsWith('TOP_')) {
+        const num = parseInt(rankTier.replace('TOP_', ''), 10);
+        if (num >= 1 && num <= 25) {
+            return `🏆 [RANK ${num}]`;
+        }
+    }
+
     const TIER_LABELS = {
         'TOP_50':   '👑 [ELITE 50]',
         'TOP_75':   '🎖️ [EXPERT 75]',
@@ -13,17 +22,41 @@ export default function Menu({ user, onSelect }) {
         'PARTICIPANT': '♟️ [PLAYER]'
     };
 
+    return TIER_LABELS[rankTier] || rankTier;
+}
+
+// HILFSFUNKTION 2: Filtert das 'TOP_50' raus, wenn für dieselbe Saison schon ein exakter RANK 1-25 existiert
+function filterDuplicateBadges(badgesArray) {
+    if (!badgesArray) return [];
+    return badgesArray.filter((badge, idx, self) => {
+        if (badge.rank_tier === 'TOP_50') {
+            const hatExaktenRang = self.some(b =>
+                b.season_name === badge.season_name &&
+                b.rank_tier.startsWith('TOP_') &&
+                parseInt(b.rank_tier.replace('TOP_', ''), 10) <= 25
+            );
+            return !hatExaktenRang;
+        }
+        return true;
+    });
+}
+
+export default function Menu({ user, onSelect }) {
+    const [profile, setProfile] = useState(null)
+
     useEffect(() => {
+        if (!user?.id) return;
+
         supabase
             .from('profiles')
             .select(`
-                        id,
-                        username,
-                        elo,
-                        badges (
-                            season_name,
-                            rank_tier
-                        )
+                id,
+                username,
+                elo,
+                badges (
+                    season_name,
+                    rank_tier
+                )
             `)
             .eq('id', user.id)
             .maybeSingle()
@@ -46,16 +79,17 @@ export default function Menu({ user, onSelect }) {
                         {profile.badges && profile.badges.length > 0 && (
                             <span className="lb-badges-container"
                                   style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
-                                    {profile.badges.slice(0, 3).map((badge, idx) => (
-                                        <span
-                                            key={idx}
-                                            style={{fontSize: '10px', opacity: 0.8}}
-                                            title={badge.season_name}
-                                        >
-                                        {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
-                                    </span>
-                                    ))}
-                                </span>
+                                    {/* NEU: Filtert Duplikate und nutzt die neue getBadgeLabel Funktion */}
+                                {filterDuplicateBadges(profile.badges).slice(0, 3).map((badge, idx) => (
+                                    <span
+                                        key={idx}
+                                        style={{fontSize: '10px', opacity: 0.8, color: '#39ff14'}}
+                                        title={badge.season_name}
+                                    >
+                                            {getBadgeLabel(badge.rank_tier)}
+                                        </span>
+                                ))}
+                            </span>
                         )}
                     </span>
                     <span>⚡ Elo: {profile.elo}</span>

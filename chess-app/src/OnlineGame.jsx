@@ -27,6 +27,46 @@ function calculateElo(winnerElo, loserElo) {
     }
 }
 
+// NEU: HILFSFUNKTION 1: Übersetzt das Tier in ein schickes Text-Label (inkl. Top 25)
+function getBadgeLabel(rankTier) {
+    if (!rankTier) return '';
+
+    if (rankTier.startsWith('TOP_')) {
+        const num = parseInt(rankTier.replace('TOP_', ''), 10);
+        if (num >= 1 && num <= 25) {
+            return `🏆 [RANK ${num}]`;
+        }
+    }
+
+    const TIER_LABELS = {
+        'TOP_50':   '👑 [ELITE 50]',
+        'TOP_75':   '🎖️ [EXPERT 75]',
+        'TOP_100':  '🥇 [CHAMP 100]',
+        'TOP_200':  '🥈 [MASTER 200]',
+        'TOP_500':  '🥉 [WARRIOR 500]',
+        'TOP_1000': '⚔️ [PRO 1000]',
+        'PARTICIPANT': '♟️ [PLAYER]'
+    };
+
+    return TIER_LABELS[rankTier] || rankTier;
+}
+
+// NEU: HILFSFUNKTION 2: Filtert das 'TOP_50' raus, wenn für dieselbe Saison schon ein exakter RANK 1-25 existiert
+function filterDuplicateBadges(badgesArray) {
+    if (!badgesArray) return [];
+    return badgesArray.filter((badge, idx, self) => {
+        if (badge.rank_tier === 'TOP_50') {
+            const hatExaktenRang = self.some(b =>
+                b.season_name === badge.season_name &&
+                b.rank_tier.startsWith('TOP_') &&
+                parseInt(b.rank_tier.replace('TOP_', ''), 10) <= 25
+            );
+            return !hatExaktenRang;
+        }
+        return true;
+    });
+}
+
 const PROMOTION_PIECES = [
     { key: "q", white: "♕", black: "♛", name: "Dame" },
     { key: "r", white: "♖", black: "♜", name: "Turm" },
@@ -70,15 +110,8 @@ export default function OnlineGame({ user, onBack }) {
 
     const files = myColor === "b" ? ["h","g","f","e","d","c","b","a"] : ["a","b","c","d","e","f","g","h"]
     const ranks = myColor === "b" ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1]
-    const TIER_LABELS = {
-        'TOP_50':   '👑 [ELITE 50]',
-        'TOP_75':   '🎖️ [EXPERT 75]',
-        'TOP_100':  '🥇 [CHAMP 100]',
-        'TOP_200':  '🥈 [MASTER 200]',
-        'TOP_500':  '🥉 [WARRIOR 500]',
-        'TOP_1000': '⚔️ [PRO 1000]',
-        'PARTICIPANT': '♟️ [PLAYER]'
-    };
+
+    // GELÖSCHT: Das alte, lokale TIER_LABELS-Objekt wurde entfernt
 
     useEffect(() => {
         findOrCreateGame()
@@ -89,14 +122,12 @@ export default function OnlineGame({ user, onBack }) {
         }
     }, [])
 
-    // ── VERLASSEN: direkt per Supabase REST löschen (kein Edge Function nötig) ──
+    // ── VERLASSEN: direkt per Supabase REST löschen ──
     useEffect(() => {
         function handleLeave() {
             const gid = gameIdRef.current
             const st  = statusRef.current
 
-            // Immer: alle waiting-games dieses Users löschen (auch ohne gid)
-            // sendBeacon mit Supabase REST DELETE + query filter
             const headers = {
                 "Content-Type":  "application/json",
                 "apikey":        SUPABASE_ANON,
@@ -104,14 +135,11 @@ export default function OnlineGame({ user, onBack }) {
                 "Prefer":        "return=minimal"
             }
 
-            // DELETE alle waiting games dieses Users
             navigator.sendBeacon(
                 `${SUPABASE_URL}/rest/v1/games?player_white=eq.${user.id}&status=eq.waiting`,
                 new Blob([JSON.stringify({})], { type: "application/json" })
             )
 
-            // sendBeacon kann keine custom headers setzen → fetch mit keepalive nutzen
-            // (keepalive funktioniert auch beim Tab-Schliessen für kleine Payloads)
             fetch(
                 `${SUPABASE_URL}/rest/v1/games?player_white=eq.${user.id}&status=eq.waiting`,
                 {
@@ -246,7 +274,6 @@ export default function OnlineGame({ user, onBack }) {
         clearInterval(graceTimerRef.current)
         supabase.removeAllChannels()
 
-        // DELETE alle waiting games dieses Users (zuverlässig via await)
         await supabase
             .from("games")
             .delete()
@@ -257,7 +284,6 @@ export default function OnlineGame({ user, onBack }) {
     }
 
     async function findOrCreateGame() {
-        // ── SAFETY NET: delete any leftover waiting games for this user ──
         await supabase
             .from("games")
             .delete()
@@ -422,7 +448,6 @@ export default function OnlineGame({ user, onBack }) {
         setHints([])
     }
 
-    // ── PROMOTION HELPERS ────────────────────────────────────────────
     function isPromotionMove(fromSq, toSq) {
         const piece = game.get(fromSq)
         if (!piece || piece.type !== "p") return false
@@ -503,7 +528,6 @@ export default function OnlineGame({ user, onBack }) {
         }).eq("id", gid)
     }
 
-    // ── GAME OVER: Elo wird vom DB-Trigger berechnet ─────────────────
     async function handleGameOver(winnerId) {
         if (status === "finished") return
         clearInterval(timerRef.current)
@@ -599,16 +623,17 @@ export default function OnlineGame({ user, onBack }) {
             <div className="online-info">
                 <div>
                     <span>vs {opponentName} {opponentElo ? `(⚡ ${opponentElo} Elo)` : ""}</span>
-                    {/* 👇 NEU: Rendert die Badges des Gegners direkt neben/unter dem Namen */}
+
+                    {/* OPTIMIERT: Nutzt jetzt filterDuplicateBadges und getBadgeLabel */}
                     {opponentBadges && opponentBadges.length > 0 && (
                         <span className="opp-badges" style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
-                            {opponentBadges.slice(0, 3).map((badge, idx) => (
+                            {filterDuplicateBadges(opponentBadges).slice(0, 3).map((badge, idx) => (
                                 <span
                                     key={idx}
-                                    style={{fontSize: '11px', opacity: 0.9}}
+                                    style={{fontSize: '11px', color: '#39ff14'}}
                                     title={badge.season_name}
                                 >
-                                    {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
+                                    {getBadgeLabel(badge.rank_tier)}
                                 </span>
                             ))}
                         </span>

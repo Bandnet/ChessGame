@@ -4,21 +4,51 @@ import supabase from './Supabase/supabase.js'
 const PAGE_SIZE = 10
 const medals = ['🥇', '🥈', '🥉', '🎖️', '🏅']
 
-const TIER_LABELS = {
-    'TOP_50':   '👑 [ELITE 50]',
-    'TOP_75':   '🎖️ [EXPERT 75]',
-    'TOP_100':  '🥇 [CHAMP 100]',
-    'TOP_200':  '🥈 [MASTER 200]',
-    'TOP_500':  '🥉 [WARRIOR 500]',
-    'TOP_1000': '⚔️ [PRO 1000]',
-    'PARTICIPANT': '♟️ [PLAYER]'
-};
+// HILFSFUNKTION 1: Übersetzt das Tier in ein schickes Text-Label
+function getBadgeLabel(rankTier) {
+    if (!rankTier) return '';
+
+    if (rankTier.startsWith('TOP_')) {
+        const num = parseInt(rankTier.replace('TOP_', ''), 10);
+        if (num >= 1 && num <= 25) {
+            return `🏆 [RANK ${num}]`;
+        }
+    }
+
+    const TIER_LABELS = {
+        'TOP_50':   '👑 [ELITE 50]',
+        'TOP_75':   '🎖️ [EXPERT 75]',
+        'TOP_100':  '🥇 [CHAMP 100]',
+        'TOP_200':  '🥈 [MASTER 200]',
+        'TOP_500':  '🥉 [WARRIOR 500]',
+        'TOP_1000': '⚔️ [PRO 1000]',
+        'PARTICIPANT': '♟️ [PLAYER]'
+    };
+
+    return TIER_LABELS[rankTier] || rankTier;
+}
+
+// HILFSFUNKTION 2: Wirft 'TOP_50' raus, wenn für dieselbe Saison schon ein exakter RANK 1-25 existiert
+function filterDuplicateBadges(badgesArray) {
+    if (!badgesArray) return [];
+    return badgesArray.filter((badge, idx, self) => {
+        if (badge.rank_tier === 'TOP_50') {
+            const hatExaktenRang = self.some(b =>
+                b.season_name === badge.season_name &&
+                b.rank_tier.startsWith('TOP_') &&
+                parseInt(b.rank_tier.replace('TOP_', ''), 10) <= 25
+            );
+            return !hatExaktenRang; // Wenn exakter Rang existiert, fliegt TOP_50 raus
+        }
+        return true;
+    });
+}
 
 export default function Leaderboard({ onBack, user }) {
     const [players, setPlayers] = useState([])
-    const [topPlayers, setTopPlayers] = useState([]) // NEU: State für die Top 5
+    const [topPlayers, setTopPlayers] = useState([])
     const [loading, setLoading] = useState(true)
-    const [loadingTop, setLoadingTop] = useState(true) // NEU: Loading für Top 5
+    const [loadingTop, setLoadingTop] = useState(true)
     const [page, setPage] = useState(0)
     const [total, setTotal] = useState(0)
     const [myRank, setMyRank] = useState(null)
@@ -30,7 +60,7 @@ export default function Leaderboard({ onBack, user }) {
     const targetId = user?.id || user?.user?.id || user?.data?.user?.id || user?.data?.id;
 
     useEffect(() => {
-        fetchTopFive() // NEU: Top 5 beim Laden abrufen
+        fetchTopFive()
         fetchPage(0)
     }, [])
 
@@ -47,27 +77,24 @@ export default function Leaderboard({ onBack, user }) {
         const confirmation = window.confirm("Möchtest du die aktuelle Saison wirklich beenden? Alle Elos werden auf 1200 zurückgesetzt!");
         if (!confirmation) return;
 
-        // Generiert den Saison-Namen basierend auf dem aktuellen Datum (z.B. "Saison_2026_6")
         const now = new Date();
         const seasonName = `Saison_${now.getFullYear()}_${now.getMonth() + 1}`;
 
         try {
-            // Ruft die eben erstellte SQL-Funktion in Supabase auf
             const { data, error } = await supabase.rpc('trigger_seasonal_reset', {
                 v_season_name: seasonName
             });
 
             if (error) throw error;
 
-            alert(data); // Zeigt die Erfolgs- oder Fehlermeldung aus der DB an
-            window.location.reload(); // Seite neu laden, um die neuen 1200 Elos zu sehen
+            alert(data);
+            window.location.reload();
         } catch (err) {
             console.error("Fehler beim Saison-Reset:", err);
             alert("Fehler: " + err.message);
         }
     }
 
-    // NEU: Funktion, um die Top 5 absolut besten Spieler zu laden
     async function fetchTopFive() {
         setLoadingTop(true)
         try {
@@ -83,7 +110,7 @@ export default function Leaderboard({ onBack, user }) {
                     )
                 `)
                 .order('elo', { ascending: false })
-                .range(0, 4)// Holt Index 0 bis 4 (die ersten 5)
+                .range(0, 4)
 
             if (error) throw error;
             setTopPlayers(data || [])
@@ -133,7 +160,14 @@ export default function Leaderboard({ onBack, user }) {
         try {
             const { data: me, error: profileError } = await supabase
                 .from('profiles')
-                .select('username, elo')
+                .select(`
+                    username, 
+                    elo,
+                    badges (
+                        season_name,
+                        rank_tier
+                    )
+                `)
                 .eq('id', uid)
                 .maybeSingle()
 
@@ -146,6 +180,7 @@ export default function Leaderboard({ onBack, user }) {
             }
 
             setMyProfile(me)
+            setMyBadges(me.badges || [])
 
             const { count, error: rankError } = await supabase
                 .from('profiles')
@@ -182,7 +217,8 @@ export default function Leaderboard({ onBack, user }) {
                 background: 'rgba(255,255,255,0.1)',
                 padding: '10px',
                 borderRadius: '5px',
-                minHeight: '24px'
+                minHeight: '24px',
+                flexWrap: 'wrap'
             }}>
                 {loadingRank ? (
                     <span>Lade deinen Rang...</span>
@@ -192,6 +228,7 @@ export default function Leaderboard({ onBack, user }) {
                     <>
                         <span>👤 {myProfile.username}</span>
                         <span><strong>Position:</strong> #{myRank}</span>
+                        <span>⚡ {myProfile.elo} Elo</span>
 
                         {myBadges && myBadges.length > 0 && (
                             <div
@@ -206,7 +243,8 @@ export default function Leaderboard({ onBack, user }) {
                                     width: '100%'
                                 }}
                             >
-                                {myBadges.map((badge, idx) => (
+                                {/* FIX 1: Filter jetzt auch beim eigenen Profil angewendet */}
+                                {filterDuplicateBadges(myBadges).map((badge, idx) => (
                                     <span
                                         key={idx}
                                         style={{
@@ -219,20 +257,18 @@ export default function Leaderboard({ onBack, user }) {
                                         }}
                                         title={badge.season_name}
                                     >
-                    {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
-                </span>
+                                        {getBadgeLabel(badge.rank_tier)}
+                                    </span>
                                 ))}
                             </div>
                         )}
-
-                        <span>⚡ {myProfile.elo} Elo</span>
                     </>
                 ) : (
                     <span>Keine Daten verfügbar</span>
                 )}
             </div>
 
-            {/* NEU: DIE TOP 5 CLASH ROYALE STYLE BOX */}
+            {/* DIE TOP 5 BOX */}
             <h2 className="section-title">👑 Elite Top 5</h2>
             <div className="top-five-container">
                 {loadingTop ? (
@@ -242,12 +278,19 @@ export default function Leaderboard({ onBack, user }) {
                         <div key={i} className={`top-card rank-${i + 1}`}>
                             <div className="top-card-badge">{medals[i]}</div>
                             <div className="top-card-info">
-                                <span className="top-card-name">{player.username}   {player.badges?.slice(0, 3).map((badge, idx) => (
-                                    <span key={idx}>
-                                        {TIER_LABELS[badge.rank_tier]}
-                                    </span>
-                                ))}</span>
-
+                                <span className="top-card-name">
+                                    {player.username}
+                                    {player.badges && player.badges.length > 0 && (
+                                        <span style={{ marginLeft: '8px', display: 'inline-flex', gap: '4px' }}>
+                                            {/* FIX 2: Filter hier für die Top 5 Box eingebaut! */}
+                                            {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
+                                                <span key={idx} style={{ fontSize: '10px', color: '#39ff14' }} title={badge.season_name}>
+                                                    {getBadgeLabel(badge.rank_tier)}
+                                                </span>
+                                            ))}
+                                        </span>
+                                    )}
+                                </span>
                                 <span className="top-card-elo">⚡ {player.elo} Elo</span>
                             </div>
                             <div className="top-card-rank-text">#{i + 1}</div>
@@ -266,23 +309,29 @@ export default function Leaderboard({ onBack, user }) {
                     const globalIndex = globalOffset + i
                     return (
                         <div key={i} className={`leaderboard-row ${globalIndex < 3 ? 'top' : ''}`}>
+                            <span className="lb-rank">
+                                {globalIndex < 3 ? medals[globalIndex] : `#${globalIndex + 1}`}
+                            </span>
+
                             <span className="lb-name">
                                 {player.username}
                                 {player.badges && player.badges.length > 0 && (
-                                    <span className="lb-badges-container"
-                                          style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
-                                    {player.badges.slice(0, 3).map((badge, idx) => (
-                                    <span
-                                        key={idx}
-                                        style={{fontSize: '10px', opacity: 0.8}}
-                                        title={badge.season_name}
-                                    >
-                                        {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
+                                    <span style={{ marginLeft: '6px', display: 'inline-flex', gap: '4px' }}>
+                                        {/* FIX 3: Nutzt jetzt auch die saubere Hilfsfunktion */}
+                                        {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
+                                            <span
+                                                key={idx}
+                                                style={{ fontSize: '10px', opacity: 0.8, color: '#39ff14' }}
+                                                title={badge.season_name}
+                                            >
+                                                {getBadgeLabel(badge.rank_tier)}
+                                            </span>
+                                        ))}
                                     </span>
-                                    ))}
-                                </span>
                                 )}
                             </span>
+
+                            <span className="lb-elo">⚡ {player.elo}</span>
                         </div>
                     )
                 })}
