@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import supabase from './Supabase/supabase.js'
 
 const PAGE_SIZE = 10
-const medals = ['🥇', '🥈', '🥉']
+const medals = ['🥇', '🥈', '🥉', '🎖️', '🏅']
 
 export default function Leaderboard({ onBack, user }) {
     const [players, setPlayers] = useState([])
+    const [topPlayers, setTopPlayers] = useState([]) // NEU: State für die Top 5
     const [loading, setLoading] = useState(true)
+    const [loadingTop, setLoadingTop] = useState(true) // NEU: Loading für Top 5
     const [page, setPage] = useState(0)
     const [total, setTotal] = useState(0)
     const [myRank, setMyRank] = useState(null)
@@ -14,14 +16,10 @@ export default function Leaderboard({ onBack, user }) {
     const [loadingRank, setLoadingRank] = useState(true)
     const [rankErrorMsg, setRankErrorMsg] = useState(null)
 
-    // 1. Debugging: Schau dir das user-Objekt direkt an
-    console.log("Leaderboard erhaltenes USER-Prop:", user);
-
-    // Versuche alle gängigen Supabase-User-Strukturen aufzudröseln
     const targetId = user?.id || user?.user?.id || user?.data?.user?.id || user?.data?.id;
-    console.log("Extrahierte targetId:", targetId);
 
     useEffect(() => {
+        fetchTopFive() // NEU: Top 5 beim Laden abrufen
         fetchPage(0)
     }, [])
 
@@ -29,11 +27,29 @@ export default function Leaderboard({ onBack, user }) {
         if (targetId) {
             fetchMyRank(targetId)
         } else if (user) {
-            // Wenn user da ist, aber keine ID gefunden wurde
             setLoadingRank(false)
             setRankErrorMsg("User-ID-Struktur falsch")
         }
     }, [targetId, user])
+
+    // NEU: Funktion, um die Top 5 absolut besten Spieler zu laden
+    async function fetchTopFive() {
+        setLoadingTop(true)
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('username, elo')
+                .order('elo', { ascending: false })
+                .range(0, 4) // Holt Index 0 bis 4 (die ersten 5)
+
+            if (error) throw error;
+            setTopPlayers(data || [])
+        } catch (err) {
+            console.error("Fehler beim Laden der Top 5:", err)
+        } finally {
+            setLoadingTop(false)
+        }
+    }
 
     async function fetchPage(p) {
         setLoading(true)
@@ -62,10 +78,8 @@ export default function Leaderboard({ onBack, user }) {
     async function fetchMyRank(uid) {
         setLoadingRank(true)
         setRankErrorMsg(null)
-        console.log("fetchMyRank gestartet für UID:", uid);
 
         try {
-            // 1. Eigenes Profil holen
             const { data: me, error: profileError } = await supabase
                 .from('profiles')
                 .select('username, elo')
@@ -75,16 +89,13 @@ export default function Leaderboard({ onBack, user }) {
             if (profileError) throw profileError;
 
             if (!me) {
-                console.warn("Kein Profil in DB für ID gefunden:", uid);
                 setRankErrorMsg("Profil nicht in DB");
                 setLoadingRank(false);
                 return;
             }
 
-            console.log("Mein Profil geladen:", me);
             setMyProfile(me)
 
-            // 2. Anzahl der Spieler mit höherem Elo zählen
             const { count, error: rankError } = await supabase
                 .from('profiles')
                 .select('id', { count: 'exact', head: true })
@@ -92,9 +103,7 @@ export default function Leaderboard({ onBack, user }) {
 
             if (rankError) throw rankError;
 
-            // 3. Rang setzen (Spieler darüber + 1)
             const computedRank = (count ?? 0) + 1;
-            console.log("Rang berechnet:", computedRank);
             setMyRank(computedRank)
 
         } catch (err) {
@@ -114,7 +123,7 @@ export default function Leaderboard({ onBack, user }) {
             <h1 className="title">♟ CHESS.EXE</h1>
             <p className="status">🏆 LEADERBOARD</p>
 
-            {/* Deine Rang-Anzeige am Top */}
+            {/* Eigener Rang */}
             <div className="my-rank-badge" style={{
                 marginBottom: '20px',
                 display: 'flex',
@@ -139,7 +148,29 @@ export default function Leaderboard({ onBack, user }) {
                 )}
             </div>
 
-            {/* Rangliste */}
+            {/* NEU: DIE TOP 5 CLASH ROYALE STYLE BOX */}
+            <h2 className="section-title">👑 Elite Top 5</h2>
+            <div className="top-five-container">
+                {loadingTop ? (
+                    <p className="no-moves">Lade Champions...</p>
+                ) : (
+                    topPlayers.map((player, i) => (
+                        <div key={i} className={`top-card rank-${i + 1}`}>
+                            <div className="top-card-badge">{medals[i]}</div>
+                            <div className="top-card-info">
+                                <span className="top-card-name">{player.username}</span>
+                                <span className="top-card-elo">⚡ {player.elo} Elo</span>
+                            </div>
+                            <div className="top-card-rank-text">#{i + 1}</div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            <hr className="divider" />
+
+            {/* Alle Ränge (Normale Pagination) */}
+            <h2 className="section-title">📊 Alle Platzierungen</h2>
             <div className="leaderboard">
                 {loading && <p className="no-moves">Laden...</p>}
                 {!loading && players.map((player, i) => {

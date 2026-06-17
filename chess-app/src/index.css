@@ -701,7 +701,117 @@ body {
 }
 .lb-name { flex: 1; color: #39ff14; }
 .lb-elo { color: #39ff14; text-shadow: 0 0 6px #39ff14; }
+/* Styling für die Top 5 Sektion */
+/* ========================================== */
+/* ── NEUES MATRIX-STYLE TOP 5 LEADERBOARD ── */
+/* ========================================== */
 
+/* Titel für die Top 5 Sektion im Matrix-Look */
+.section-title {
+  font-size: 14px;
+  color: #39ff14;
+  text-shadow: 0 0 8px #39ff14;
+  text-align: left;
+  margin: 20px 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  width: 100%;
+  max-width: 440px; /* Synchronisiert mit der neuen Containerbreite */
+}
+
+/* Die Hauptbox - Verbreitert auf 440px und im Terminal-Grün gehalten */
+.top-five-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+  background: #0d1f0d;
+  padding: 18px;
+  border-radius: 8px;
+  border: 1px solid #39ff14; /* Volles, stechendes Matrix-Grün für den Rand */
+  width: 100%;
+  max-width: 440px; /* Ein wenig breiter als die normale Liste (400px) */
+  box-shadow: 0 0 20px #39ff1433; /* Grüner Glow-Effekt passend zur Login-Box */
+}
+
+/* Basis-Card für jeden Top-Spieler im Terminal-Look */
+.top-card {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 4px;
+  background: #0a0a0a; /* Dunkler Kontrast-Hintergrund für die Zeilen */
+  border: 1px solid #39ff1422;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Subtiler Hover-Effekt, der zum Terminal passt */
+.top-card:hover {
+  border-color: #39ff1488;
+  background: #39ff1411;
+  box-shadow: 0 0 8px #39ff1422;
+}
+
+/* Spezifische linke Akzentränder im Matrix-Grün-Verlauf anstelle von Echtfarben */
+.rank-1 {
+  border-left: 4px solid #39ff14;
+  background: linear-gradient(90deg, #39ff1415, #0a0a0a 40%);
+}
+.rank-2 {
+  border-left: 4px solid #39ff14aa;
+  background: linear-gradient(90deg, #39ff140f, #0a0a0a 40%);
+}
+.rank-3 {
+  border-left: 4px solid #39ff1466;
+  background: linear-gradient(90deg, #39ff140a, #0a0a0a 40%);
+}
+.rank-4, .rank-5 {
+  border-left: 4px solid #39ff1433;
+}
+
+/* Card-Inhalte */
+.top-card-badge {
+  font-size: 1.4rem;
+  margin-right: 16px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.top-card-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+/* Textfarben angepasst an dein Farbschema */
+.top-card-name {
+  font-weight: bold;
+  font-size: 15px;
+  color: #39ff14;
+  text-shadow: 0 0 4px #39ff1433;
+}
+
+.top-card-elo {
+  font-size: 12px;
+  color: #39ff14aa; /* Etwas dezenteres Grün für die Elo-Zahl */
+  margin-top: 2px;
+}
+
+.top-card-rank-text {
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: bold;
+  color: #39ff1444; /* Abgedunkeltes Grün für die Text-Platzierung hinten (#1, #2...) */
+}
+
+.divider {
+  border: 0;
+  height: 1px;
+  background: #39ff1422;
+  margin: 20px 0;
+  width: 100%;
+  max-width: 440px;
+}
 /* ── ANIMATIONS ── */
 @keyframes matrix-blink {
   from { opacity: 1; }
