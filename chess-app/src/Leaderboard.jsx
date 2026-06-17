@@ -4,6 +4,16 @@ import supabase from './Supabase/supabase.js'
 const PAGE_SIZE = 10
 const medals = ['🥇', '🥈', '🥉', '🎖️', '🏅']
 
+const TIER_LABELS = {
+    'TOP_50':   '👑 [ELITE 50]',
+    'TOP_75':   '🎖️ [EXPERT 75]',
+    'TOP_100':  '🥇 [CHAMP 100]',
+    'TOP_200':  '🥈 [MASTER 200]',
+    'TOP_500':  '🥉 [WARRIOR 500]',
+    'TOP_1000': '⚔️ [PRO 1000]',
+    'PARTICIPANT': '♟️ [PLAYER]'
+};
+
 export default function Leaderboard({ onBack, user }) {
     const [players, setPlayers] = useState([])
     const [topPlayers, setTopPlayers] = useState([]) // NEU: State für die Top 5
@@ -12,6 +22,7 @@ export default function Leaderboard({ onBack, user }) {
     const [page, setPage] = useState(0)
     const [total, setTotal] = useState(0)
     const [myRank, setMyRank] = useState(null)
+    const [myBadges, setMyBadges] = useState([])
     const [myProfile, setMyProfile] = useState(null)
     const [loadingRank, setLoadingRank] = useState(true)
     const [rankErrorMsg, setRankErrorMsg] = useState(null)
@@ -32,15 +43,47 @@ export default function Leaderboard({ onBack, user }) {
         }
     }, [targetId, user])
 
+    async function runMonthlySeasonReset() {
+        const confirmation = window.confirm("Möchtest du die aktuelle Saison wirklich beenden? Alle Elos werden auf 1200 zurückgesetzt!");
+        if (!confirmation) return;
+
+        // Generiert den Saison-Namen basierend auf dem aktuellen Datum (z.B. "Saison_2026_6")
+        const now = new Date();
+        const seasonName = `Saison_${now.getFullYear()}_${now.getMonth() + 1}`;
+
+        try {
+            // Ruft die eben erstellte SQL-Funktion in Supabase auf
+            const { data, error } = await supabase.rpc('trigger_seasonal_reset', {
+                v_season_name: seasonName
+            });
+
+            if (error) throw error;
+
+            alert(data); // Zeigt die Erfolgs- oder Fehlermeldung aus der DB an
+            window.location.reload(); // Seite neu laden, um die neuen 1200 Elos zu sehen
+        } catch (err) {
+            console.error("Fehler beim Saison-Reset:", err);
+            alert("Fehler: " + err.message);
+        }
+    }
+
     // NEU: Funktion, um die Top 5 absolut besten Spieler zu laden
     async function fetchTopFive() {
         setLoadingTop(true)
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('username, elo')
+                .select(`
+                    id,
+                    username,
+                    elo,
+                    badges (
+                        season_name,
+                        rank_tier
+                    )
+                `)
                 .order('elo', { ascending: false })
-                .range(0, 4) // Holt Index 0 bis 4 (die ersten 5)
+                .range(0, 4)// Holt Index 0 bis 4 (die ersten 5)
 
             if (error) throw error;
             setTopPlayers(data || [])
@@ -59,7 +102,15 @@ export default function Leaderboard({ onBack, user }) {
 
             const { data, count, error } = await supabase
                 .from('profiles')
-                .select('username, elo', { count: 'exact' })
+                .select(`
+                        id,
+                        username,
+                        elo,
+                        badges (
+                            season_name,
+                            rank_tier
+                        )
+        `, { count: 'exact' })
                 .order('elo', { ascending: false })
                 .range(from, to)
 
@@ -141,6 +192,39 @@ export default function Leaderboard({ onBack, user }) {
                     <>
                         <span>👤 {myProfile.username}</span>
                         <span><strong>Position:</strong> #{myRank}</span>
+
+                        {myBadges && myBadges.length > 0 && (
+                            <div
+                                style={{
+                                    borderTop: '1px solid #39ff1422',
+                                    paddingTop: '8px',
+                                    marginTop: '8px',
+                                    display: 'flex',
+                                    gap: '6px',
+                                    flexWrap: 'wrap',
+                                    justifyContent: 'center',
+                                    width: '100%'
+                                }}
+                            >
+                                {myBadges.map((badge, idx) => (
+                                    <span
+                                        key={idx}
+                                        style={{
+                                            fontSize: '11px',
+                                            background: '#39ff1411',
+                                            border: '1px solid #39ff1444',
+                                            padding: '2px 6px',
+                                            color: '#39ff14',
+                                            fontFamily: 'Courier New, monospace'
+                                        }}
+                                        title={badge.season_name}
+                                    >
+                    {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
+                </span>
+                                ))}
+                            </div>
+                        )}
+
                         <span>⚡ {myProfile.elo} Elo</span>
                     </>
                 ) : (
@@ -158,7 +242,12 @@ export default function Leaderboard({ onBack, user }) {
                         <div key={i} className={`top-card rank-${i + 1}`}>
                             <div className="top-card-badge">{medals[i]}</div>
                             <div className="top-card-info">
-                                <span className="top-card-name">{player.username}</span>
+                                <span className="top-card-name">{player.username}   {player.badges?.slice(0, 3).map((badge, idx) => (
+                                    <span key={idx}>
+                                        {TIER_LABELS[badge.rank_tier]}
+                                    </span>
+                                ))}</span>
+
                                 <span className="top-card-elo">⚡ {player.elo} Elo</span>
                             </div>
                             <div className="top-card-rank-text">#{i + 1}</div>
@@ -177,11 +266,23 @@ export default function Leaderboard({ onBack, user }) {
                     const globalIndex = globalOffset + i
                     return (
                         <div key={i} className={`leaderboard-row ${globalIndex < 3 ? 'top' : ''}`}>
-                            <span className="lb-rank">
-                                {globalIndex < 3 ? medals[globalIndex] : `#${globalIndex + 1}`}
+                            <span className="lb-name">
+                                {player.username}
+                                {player.badges && player.badges.length > 0 && (
+                                    <span className="lb-badges-container"
+                                          style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
+                                    {player.badges.slice(0, 3).map((badge, idx) => (
+                                    <span
+                                        key={idx}
+                                        style={{fontSize: '10px', opacity: 0.8}}
+                                        title={badge.season_name}
+                                    >
+                                        {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
+                                    </span>
+                                    ))}
+                                </span>
+                                )}
                             </span>
-                            <span className="lb-name">{player.username}</span>
-                            <span className="lb-elo">⚡ {player.elo}</span>
                         </div>
                     )
                 })}

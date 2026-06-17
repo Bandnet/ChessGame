@@ -3,11 +3,28 @@ import { useEffect, useState } from 'react'
 
 export default function Menu({ user, onSelect }) {
     const [profile, setProfile] = useState(null)
+    const TIER_LABELS = {
+        'TOP_50':   '👑 [ELITE 50]',
+        'TOP_75':   '🎖️ [EXPERT 75]',
+        'TOP_100':  '🥇 [CHAMP 100]',
+        'TOP_200':  '🥈 [MASTER 200]',
+        'TOP_500':  '🥉 [WARRIOR 500]',
+        'TOP_1000': '⚔️ [PRO 1000]',
+        'PARTICIPANT': '♟️ [PLAYER]'
+    };
 
     useEffect(() => {
         supabase
             .from('profiles')
-            .select('username, elo')
+            .select(`
+                        id,
+                        username,
+                        elo,
+                        badges (
+                            season_name,
+                            rank_tier
+                        )
+            `)
             .eq('id', user.id)
             .maybeSingle()
             .then(({ data }) => setProfile(data))
@@ -24,7 +41,23 @@ export default function Menu({ user, onSelect }) {
 
             {profile && (
                 <div className="profile-badge">
-                    <span>👤 {profile.username}</span>
+                    <span>👤
+                        {profile.username}
+                        {profile.badges && profile.badges.length > 0 && (
+                            <span className="lb-badges-container"
+                                  style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
+                                    {profile.badges.slice(0, 3).map((badge, idx) => (
+                                        <span
+                                            key={idx}
+                                            style={{fontSize: '10px', opacity: 0.8}}
+                                            title={badge.season_name}
+                                        >
+                                        {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
+                                    </span>
+                                    ))}
+                                </span>
+                        )}
+                    </span>
                     <span>⚡ Elo: {profile.elo}</span>
                 </div>
             )}

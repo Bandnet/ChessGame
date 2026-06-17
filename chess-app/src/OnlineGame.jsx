@@ -44,6 +44,8 @@ export default function OnlineGame({ user, onBack }) {
     const [result, setResult]       = useState(null)
     const [eloChange, setEloChange] = useState(null)
     const [opponentName, setOpponentName] = useState("")
+    const [opponentElo, setOpponentElo] = useState(null)
+    const [opponentBadges, setOpponentBadges] = useState([])
     const [lastMove, setLastMove]   = useState(null)
     const [pendingPromotion, setPendingPromotion] = useState(null)
 
@@ -68,6 +70,15 @@ export default function OnlineGame({ user, onBack }) {
 
     const files = myColor === "b" ? ["h","g","f","e","d","c","b","a"] : ["a","b","c","d","e","f","g","h"]
     const ranks = myColor === "b" ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1]
+    const TIER_LABELS = {
+        'TOP_50':   '👑 [ELITE 50]',
+        'TOP_75':   '🎖️ [EXPERT 75]',
+        'TOP_100':  '🥇 [CHAMP 100]',
+        'TOP_200':  '🥈 [MASTER 200]',
+        'TOP_500':  '🥉 [WARRIOR 500]',
+        'TOP_1000': '⚔️ [PRO 1000]',
+        'PARTICIPANT': '♟️ [PLAYER]'
+    };
 
     useEffect(() => {
         findOrCreateGame()
@@ -280,10 +291,19 @@ export default function OnlineGame({ user, onBack }) {
 
                 const { data: opp } = await supabase
                     .from("profiles")
-                    .select("username")
+                    .select(`
+                        username, 
+                        elo,
+                        badges (
+                            season_name,
+                            rank_tier
+                        )
+                    `)
                     .eq("id", g.player_white)
                     .maybeSingle()
                 setOpponentName(opp?.username || "Opponent")
+                setOpponentElo(opp?.elo || 1200)
+                setOpponentBadges(opp?.badges || [])
             } else {
                 setGameId(g.id)
                 setMyColor("w")
@@ -309,10 +329,19 @@ export default function OnlineGame({ user, onBack }) {
                     setStatus("playing")
                     const { data: opp } = await supabase
                         .from("profiles")
-                        .select("username")
+                        .select(`
+                            username, 
+                            elo,
+                            badges (
+                                season_name,
+                                rank_tier
+                            )
+                        `)
                         .eq("id", payload.new.player_black)
                         .maybeSingle()
                     setOpponentName(opp?.username || "Opponent")
+                    setOpponentElo(opp?.elo || 1200)
+                    setOpponentBadges(opp?.badges || [])
                 }
             })
             .subscribe()
@@ -568,7 +597,23 @@ export default function OnlineGame({ user, onBack }) {
             <h1 className="title">♟ CHESS.EXE</h1>
 
             <div className="online-info">
-                <span>vs {opponentName}</span>
+                <div>
+                    <span>vs {opponentName} {opponentElo ? `(⚡ ${opponentElo} Elo)` : ""}</span>
+                    {/* 👇 NEU: Rendert die Badges des Gegners direkt neben/unter dem Namen */}
+                    {opponentBadges && opponentBadges.length > 0 && (
+                        <span className="opp-badges" style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
+                            {opponentBadges.slice(0, 3).map((badge, idx) => (
+                                <span
+                                    key={idx}
+                                    style={{fontSize: '11px', opacity: 0.9}}
+                                    title={badge.season_name}
+                                >
+                                    {TIER_LABELS[badge.rank_tier] || badge.rank_tier}
+                                </span>
+                            ))}
+                        </span>
+                    )}
+                </div>
                 <span>{myColor === "w" ? "Du spielst ♔ Weiss" : "Du spielst ♚ Schwarz"}</span>
                 <span className={game.turn() === myColor ? "your-turn" : "wait-turn"}>
                     {game.turn() === myColor ? "⚡ Dein Zug" : "⏳ Gegner ist dran"}
