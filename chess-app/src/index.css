@@ -821,7 +821,7 @@ body {
 /* ── RESPONSIVE ── */
 @media (min-width: 500px) {
   .online-info {
-    flex-direction: row;
+    flex-direction: column;
     justify-content: space-between;
   }
 }
