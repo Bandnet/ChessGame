@@ -4,7 +4,6 @@ import supabase from './Supabase/supabase.js'
 const PAGE_SIZE = 10
 const medals = ['🥇', '🥈', '🥉', '🎖️', '🏅']
 
-// HILFSFUNKTION 1: Übersetzt das Tier in ein schickes Text-Label
 function getBadgeLabel(rankTier) {
     if (!rankTier) return '';
 
@@ -28,7 +27,6 @@ function getBadgeLabel(rankTier) {
     return TIER_LABELS[rankTier] || rankTier;
 }
 
-// HILFSFUNKTION 2: Wirft 'TOP_50' raus, wenn für dieselbe Saison schon ein exakter RANK 1-25 existiert
 function filterDuplicateBadges(badgesArray) {
     if (!badgesArray) return [];
     return badgesArray.filter((badge, idx, self) => {
@@ -57,9 +55,7 @@ export default function Leaderboard({ onBack, user }) {
     const [loadingRank, setLoadingRank] = useState(true)
     const [rankErrorMsg, setRankErrorMsg] = useState(null)
 
-    // Trage hier deine exakte Supabase User-UUID ein
     const ADMIN_ID = "4260345b-edac-4666-992f-d6a9e1d139c4";
-
     const targetId = user?.id || user?.user?.id || user?.data?.user?.id || user?.data?.id;
 
     useEffect(() => {
@@ -80,7 +76,6 @@ export default function Leaderboard({ onBack, user }) {
         const confirmation = window.confirm("Möchtest du die aktuelle Saison wirklich beenden? Alle Elos werden auf 1200 zurückgesetzt!");
         if (!confirmation) return;
 
-        // Sicherheitsabfrage per Passwort
         const password = window.prompt("Bitte Admin-Passwort eingeben, um den Reset zu bestätigen:");
         if (password !== "6769") {
             alert("Falsches Passwort! Reset abgebrochen.");
@@ -212,7 +207,6 @@ export default function Leaderboard({ onBack, user }) {
 
     const totalPages = Math.ceil(total / PAGE_SIZE)
     const globalOffset = page * PAGE_SIZE
-
     const isAdmin = user?.id === ADMIN_ID;
 
     return (
@@ -221,51 +215,24 @@ export default function Leaderboard({ onBack, user }) {
             <h1 className="title">♟ CHESS.EXE</h1>
             <p className="status">🏆 LEADERBOARD</p>
 
-            {/* Eigener Rang */}
-            <div className="my-rank-badge" style={{
-                marginBottom: '20px',
-                display: 'flex',
-                justifyContent: 'space-around',
-                background: 'rgba(255,255,255,0.1)',
-                padding: '10px',
-                borderRadius: '5px',
-                minHeight: '24px',
-                flexWrap: 'wrap'
-            }}>
+            {/* Eigener Rang (Steuerung komplett via .my-rank-badge) */}
+            <div className="my-rank-badge">
                 {loadingRank ? (
                     <span>Lade deinen Rang...</span>
                 ) : rankErrorMsg ? (
-                    <span style={{ color: '#ff6b6b' }}>❌ Fehler: {rankErrorMsg}</span>
+                    <span className="rank-error">❌ Fehler: {rankErrorMsg}</span>
                 ) : myProfile && myRank !== null ? (
                     <>
-                        <span>👤 {myProfile.username}</span>
-                        <span><strong>Position:</strong> #{myRank}</span>
-                        <span>⚡ {myProfile.elo} Elo</span>
+                        <span className="my-rank-user">👤 {myProfile.username}</span>
+                        <span className="my-rank-pos"><strong>Position:</strong> #{myRank}</span>
+                        <span className="my-rank-elo">⚡ {myProfile.elo} Elo</span>
 
                         {myBadges && myBadges.length > 0 && (
-                            <div
-                                style={{
-                                    borderTop: '1px solid #39ff1422',
-                                    paddingTop: '8px',
-                                    marginTop: '8px',
-                                    display: 'flex',
-                                    gap: '6px',
-                                    flexWrap: 'wrap',
-                                    justifyContent: 'center',
-                                    width: '100%'
-                                }}
-                            >
+                            <div className="my-badges-wrapper">
                                 {filterDuplicateBadges(myBadges).map((badge, idx) => (
                                     <span
                                         key={idx}
-                                        style={{
-                                            fontSize: '11px',
-                                            background: '#39ff1411',
-                                            border: '1px solid #39ff1444',
-                                            padding: '2px 6px',
-                                            color: '#39ff14',
-                                            fontFamily: 'Courier New, monospace'
-                                        }}
+                                        className="profile-badge-item"
                                         title={badge.season_name}
                                     >
                                         {getBadgeLabel(badge.rank_tier)}
@@ -292,9 +259,9 @@ export default function Leaderboard({ onBack, user }) {
                                 <span className="top-card-name">
                                     {player.username}
                                     {player.badges && player.badges.length > 0 && (
-                                        <span style={{ marginLeft: '8px', display: 'inline-flex', gap: '4px' }}>
+                                        <span className="name-badges-inline">
                                             {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
-                                                <span key={idx} style={{ fontSize: '10px', color: '#39ff14' }} title={badge.season_name}>
+                                                <span key={idx} className="profile-badge-item text-badge" title={badge.season_name}>
                                                     {getBadgeLabel(badge.rank_tier)}
                                                 </span>
                                             ))}
@@ -326,11 +293,11 @@ export default function Leaderboard({ onBack, user }) {
                             <span className="lb-name">
                                 {player.username}
                                 {player.badges && player.badges.length > 0 && (
-                                    <span style={{ marginLeft: '8px', display: 'inline-flex', gap: '4px' }}>
+                                    <span className="name-badges-inline">
                                         {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
                                             <span
                                                 key={idx}
-                                                style={{ fontSize: '10px', opacity: 0.8, color: '#39ff14' }}
+                                                className="profile-badge-item text-badge"
                                                 title={badge.season_name}
                                             >
                                                 {getBadgeLabel(badge.rank_tier)}
@@ -369,32 +336,11 @@ export default function Leaderboard({ onBack, user }) {
                 </div>
             )}
 
-            {/* NEU: Geschützter Admin-Bereich ganz unten */}
+            {/* Admin-Bereich (Steuerung komplett via .admin-panel) */}
             {isAdmin && (
-                <div className="admin-panel" style={{
-                    marginTop: '40px',
-                    padding: '20px',
-                    border: '1px dashed #ff1414',
-                    background: 'rgba(255, 20, 20, 0.05)',
-                    borderRadius: '6px',
-                    textAlign: 'center'
-                }}>
-                    <h3 style={{ color: '#ff1414', margin: '0 0 10px 0', fontSize: '14px', letterSpacing: '1px' }}>
-                        🚨 SYSTEM CONTROL (ADMIN ONLY)
-                    </h3>
-                    <button
-                        className="matrix-btn resign"
-                        onClick={runMonthlySeasonReset}
-                        style={{
-                            background: 'rgba(255, 20, 20, 0.15)',
-                            border: '1px solid #ff1414',
-                            color: '#ff1414',
-                            padding: '10px 20px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            letterSpacing: '1px'
-                        }}
-                    >
+                <div className="admin-panel">
+                    <h3 className="admin-title">🚨 SYSTEM CONTROL (ADMIN ONLY)</h3>
+                    <button className="matrix-btn resign admin-btn" onClick={runMonthlySeasonReset}>
                         TRIGGER SEASONAL RESET
                     </button>
                 </div>

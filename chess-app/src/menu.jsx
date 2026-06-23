@@ -41,7 +41,8 @@ function filterDuplicateBadges(badgesArray) {
     });
 }
 
-export default function Menu({ user, onSelect }) {
+// NEU: isTraditional und onToggleTheme als Props hinzugefügt
+export default function Menu({ user, onSelect, isTraditional, onToggleTheme }) {
     const [profile, setProfile] = useState(null)
 
     useEffect(() => {
@@ -89,8 +90,8 @@ export default function Menu({ user, onSelect }) {
                                     className="profile-badge-item"
                                     title={badge.season_name}
                                 >
-                        {getBadgeLabel(badge.rank_tier)}
-                    </span>
+                                    {getBadgeLabel(badge.rank_tier)}
+                                </span>
                             ))}
                         </div>
                     )}
@@ -121,6 +122,12 @@ export default function Menu({ user, onSelect }) {
                 <button className="menu-btn" onClick={() => onSelect('leaderboard')}>
                     🏆 Leaderboard
                     <span className="menu-btn-sub">Top players by Elo</span>
+                </button>
+
+                {/* NEU: Der Theme-Switcher Button im Menü */}
+                <button className="menu-btn theme-toggle-btn" onClick={onToggleTheme}>
+                    {isTraditional ? '📟 Matrix-Modus' : '📜 Klassischer Look'}
+                    <span className="menu-btn-sub">Design wechseln</span>
                 </button>
             </div>
 
