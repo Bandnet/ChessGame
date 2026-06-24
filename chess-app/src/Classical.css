@@ -882,3 +882,5 @@ body.traditional .admin-btn {
     body.traditional .online-info {
         flex-direction: column;
         justify-content: space-between;
+    }
+}
