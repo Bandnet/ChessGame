@@ -6,5 +6,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     dedupe: ['react', 'react-dom']
+  },
+  build: {
+    cssMinify: 'esbuild' // 👈 Deaktiviert LightningCSS für CSS-Minification
   }
 })
