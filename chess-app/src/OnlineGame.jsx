@@ -27,7 +27,6 @@ function calculateElo(winnerElo, loserElo) {
     }
 }
 
-// NEU: HILFSFUNKTION 1: Übersetzt das Tier in ein schickes Text-Label (inkl. Top 25)
 function getBadgeLabel(rankTier) {
     if (!rankTier) return '';
 
@@ -51,7 +50,6 @@ function getBadgeLabel(rankTier) {
     return TIER_LABELS[rankTier] || rankTier;
 }
 
-// NEU: HILFSFUNKTION 2: Filtert das 'TOP_50' raus, wenn für dieselbe Saison schon ein exakter RANK 1-25 existiert
 function filterDuplicateBadges(badgesArray) {
     if (!badgesArray) return [];
     return badgesArray.filter((badge, idx, self) => {
@@ -92,6 +90,9 @@ export default function OnlineGame({ user, onBack }) {
     // ── REMIS STATUS ─────────────────────────────────────────────────
     const [drawOfferedBy, setDrawOfferedBy] = useState(null)
 
+    // ── AUFGEBEN BESTÄTIGUNG ──────────────────────────────────────────
+    const [showResignConfirm, setShowResignConfirm] = useState(false)
+
     // ── TIMER STATES ─────────────────────────────────────────────────
     const [moveTimeLeft, setMoveTimeLeft] = useState(300)
     const [graceTimeLeft, setGraceTimeLeft] = useState(20)
@@ -110,8 +111,6 @@ export default function OnlineGame({ user, onBack }) {
 
     const files = myColor === "b" ? ["h","g","f","e","d","c","b","a"] : ["a","b","c","d","e","f","g","h"]
     const ranks = myColor === "b" ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1]
-
-    // GELÖSCHT: Das alte, lokale TIER_LABELS-Objekt wurde entfernt
 
     useEffect(() => {
         findOrCreateGame()
@@ -240,11 +239,14 @@ export default function OnlineGame({ user, onBack }) {
         return myColorRef.current === "w" ? data.player_black : data.player_white
     }
 
+    // ── AUFGEBEN: Popup öffnen statt window.confirm ───────────────────
     async function handleResign() {
         if (!gameId || status !== "playing") return
-        const confirmResign = window.confirm("Möchtest du wirklich aufgeben?")
-        if (!confirmResign) return
+        setShowResignConfirm(true)
+    }
 
+    async function confirmResign() {
+        setShowResignConfirm(false)
         const opponentId = await fetchOpponentId()
         if (opponentId) {
             await finishGame(gameId, opponentId)
@@ -300,6 +302,7 @@ export default function OnlineGame({ user, onBack }) {
         setPendingPromotion(null)
         setFrom(null)
         setHints([])
+        setShowResignConfirm(false)
         graceStartedRef.current = false
 
         try {
@@ -624,7 +627,6 @@ export default function OnlineGame({ user, onBack }) {
                 <div>
                     <span>vs {opponentName} {opponentElo ? `(⚡ ${opponentElo} Elo)` : ""}</span>
 
-                    {/* OPTIMIERT: Nutzt jetzt filterDuplicateBadges und getBadgeLabel */}
                     {opponentBadges && opponentBadges.length > 0 && (
                         <span className="opp-badges" style={{marginLeft: '10px', display: 'inline-flex', gap: '4px'}}>
                             {filterDuplicateBadges(opponentBadges).slice(0, 3).map((badge, idx) => (
@@ -704,6 +706,23 @@ export default function OnlineGame({ user, onBack }) {
                     </div>
                 </div>
             </div>
+
+            {/* ── RESIGN CONFIRMATION POPUP ── */}
+            {showResignConfirm && (
+                <div className="terminal-overlay">
+                    <div className="terminal-popup">
+                        <p className="terminal-popup-text">Möchtest du wirklich aufgeben?</p>
+                        <div className="terminal-popup-buttons">
+                            <button className="matrix-btn resign" onClick={confirmResign}>
+                                🏳️ Aufgeben
+                            </button>
+                            <button className="matrix-btn" onClick={() => setShowResignConfirm(false)}>
+                                ✖ Abbrechen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── PROMOTION PICKER POPUP ── */}
             {pendingPromotion && (

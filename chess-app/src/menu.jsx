@@ -1,7 +1,6 @@
 import supabase from './Supabase/supabase.js'
 import { useEffect, useState } from 'react'
 
-// HILFSFUNKTION 1: Übersetzt das Tier in ein schickes Text-Label (inkl. Top 25)
 function getBadgeLabel(rankTier) {
     if (!rankTier) return '';
 
@@ -25,7 +24,6 @@ function getBadgeLabel(rankTier) {
     return TIER_LABELS[rankTier] || rankTier;
 }
 
-// HILFSFUNKTION 2: Filtert das 'TOP_50' raus, wenn für dieselbe Saison schon ein exakter RANK 1-25 existiert
 function filterDuplicateBadges(badgesArray) {
     if (!badgesArray) return [];
     return badgesArray.filter((badge, idx, self) => {
@@ -41,8 +39,17 @@ function filterDuplicateBadges(badgesArray) {
     });
 }
 
-// NEU: isTraditional und onToggleTheme als Props hinzugefügt
-export default function Menu({ user, onSelect, isTraditional, onToggleTheme }) {
+const THEME_LABELS = {
+    traditional: '📜 Klassischer Look',
+    green:       '🟢 Green Theme',
+    violet:      '🟣 Violet Theme',
+};
+
+    // Neues Theme hier ergänzen, z.B.:
+    // wood: '📟 Matrix-Modus',
+
+
+export default function Menu({ user, onSelect, theme, onToggleTheme }) {
     const [profile, setProfile] = useState(null)
 
     useEffect(() => {
@@ -75,13 +82,11 @@ export default function Menu({ user, onSelect, isTraditional, onToggleTheme }) {
 
             {profile && (
                 <div className="profile-badge">
-                    {/* Obere Zeile: Name links, Elo rechts */}
                     <div className="profile-meta">
                         <span className="profile-username">👤 {profile.username}</span>
                         <span className="profile-elo">⚡ Elo: {profile.elo}</span>
                     </div>
 
-                    {/* Untere Zeile: Nur die Badges, falls vorhanden */}
                     {profile.badges && profile.badges.length > 0 && (
                         <div className="profile-badges-wrapper">
                             {filterDuplicateBadges(profile.badges).slice(0, 3).map((badge, idx) => (
@@ -124,9 +129,8 @@ export default function Menu({ user, onSelect, isTraditional, onToggleTheme }) {
                     <span className="menu-btn-sub">Top players by Elo</span>
                 </button>
 
-                {/* NEU: Der Theme-Switcher Button im Menü */}
                 <button className="menu-btn theme-toggle-btn" onClick={onToggleTheme}>
-                    {isTraditional ? '📟 Matrix-Modus' : '📜 Klassischer Look'}
+                    {THEME_LABELS[theme] || '🎨 Design wechseln'}
                     <span className="menu-btn-sub">Design wechseln</span>
                 </button>
             </div>

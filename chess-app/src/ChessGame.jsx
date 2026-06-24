@@ -44,7 +44,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
     const [hints, setHints] = useState([])
     const [thinking, setThinking] = useState(false)
     const [lastMove, setLastMove] = useState(null)
-    const [pendingPromotion, setPendingPromotion] = useState(null) // { from, to, color }
+    const [pendingPromotion, setPendingPromotion] = useState(null)
 
     // ── INAKTIVITÄTS-TIMER STATES ─────────────────────────────────────
     const [moveTimeLeft, setMoveTimeLeft] = useState(300)
@@ -53,6 +53,10 @@ export default function ChessGame({ botMode = "none", onBack }) {
     const [graceTimeLeft, setGraceTimeLeft] = useState(20)
     const [isGracePeriod, setIsGracePeriod] = useState(true)
     const [showDrawConfirm, setShowDrawConfirm] = useState(false)
+
+    // ── AUFGEBEN BESTÄTIGUNG ──────────────────────────────────────────
+    const [showResignConfirm, setShowResignConfirm] = useState(false)
+    const [resigningPlayer, setResigningPlayer] = useState(null)
 
     const timerRef = useRef(null)
     const graceTimerRef = useRef(null)
@@ -137,19 +141,22 @@ export default function ChessGame({ botMode = "none", onBack }) {
         return () => clearInterval(timerRef.current)
     }, [game, gameFinished, thinking, isGracePeriod])
 
-    // ── AUFGEBEN & REMIS ─────────────────────────────────────────────
+    // ── AUFGEBEN: Popup öffnen statt window.confirm ───────────────────
     function handleResign() {
         if (game.isGameOver() || gameFinished) return
         const activePlayer = game.turn() === "w" ? "Weiss" : "Schwarz"
-        const winner = game.turn() === "w" ? "Schwarz" : "Weiss"
+        setResigningPlayer(activePlayer)
+        setShowResignConfirm(true)
+    }
 
-        if (window.confirm(`${activePlayer}, möchtest du wirklich aufgeben?`)) {
-            clearInterval(timerRef.current)
-            clearInterval(graceTimerRef.current)
-            setGameFinished(true)
-            setIsGracePeriod(false)
-            setTimeWinner(`${winner} gewinnt durch Aufgabe!`)
-        }
+    function confirmResign() {
+        const winner = resigningPlayer === "Weiss" ? "Schwarz" : "Weiss"
+        setShowResignConfirm(false)
+        clearInterval(timerRef.current)
+        clearInterval(graceTimerRef.current)
+        setGameFinished(true)
+        setIsGracePeriod(false)
+        setTimeWinner(`${winner} gewinnt durch Aufgabe!`)
     }
 
     function handleDraw() {
@@ -256,6 +263,8 @@ export default function ChessGame({ botMode = "none", onBack }) {
         setGameFinished(false)
         setTimeWinner(null)
         setShowDrawConfirm(false)
+        setShowResignConfirm(false)
+        setResigningPlayer(null)
         setLastMove(null)
         setPendingPromotion(null)
     }
@@ -354,6 +363,25 @@ export default function ChessGame({ botMode = "none", onBack }) {
                 </div>
             </div>
 
+            {/* ── RESIGN CONFIRMATION POPUP ── */}
+            {showResignConfirm && (
+                <div className="terminal-overlay">
+                    <div className="terminal-popup">
+                        <p className="terminal-popup-text">
+                            {resigningPlayer}, möchtest du wirklich aufgeben?
+                        </p>
+                        <div className="terminal-popup-buttons">
+                            <button className="matrix-btn resign" onClick={confirmResign}>
+                                🏳️ Aufgeben
+                            </button>
+                            <button className="matrix-btn" onClick={() => setShowResignConfirm(false)}>
+                                ✖ Abbrechen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ── PROMOTION PICKER POPUP ── */}
             {pendingPromotion && (
                 <div className="terminal-overlay">
@@ -378,7 +406,7 @@ export default function ChessGame({ botMode = "none", onBack }) {
                 </div>
             )}
 
-            {/* ── TERMINAL CONFIRM POPUP ── */}
+            {/* ── DRAW CONFIRM POPUP ── */}
             {showDrawConfirm && (
                 <div className="terminal-overlay">
                     <div className="terminal-popup">

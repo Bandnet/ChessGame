@@ -29,6 +29,7 @@ body.traditional .title {
     letter-spacing: 2px;
     font-weight: normal;
     text-transform: uppercase;
+    /* Definiert einen warmen, klassischen Textschatten */
     text-shadow: 0 0 10px #4c2d07, 0 0 30px #512e07;
 }
 
@@ -43,6 +44,9 @@ body.traditional .back-btn {
     letter-spacing: 1px;
     padding: 0;
     transition: color 0.2s;
+    /* Überschreibt etwaige Schatten des anderen Themes */
+    text-shadow: none !important;
+    box-shadow: none !important;
 }
 body.traditional .back-btn:hover { color: #eaddca; }
 
@@ -50,6 +54,7 @@ body.traditional .status {
     font-size: 16px;
     color: #eaddca;
     letter-spacing: 1px;
+    text-shadow: none !important; /* Kein Textschatten */
 }
 
 /* ── LOGIN ── */
@@ -73,7 +78,8 @@ body.traditional .login-box {
     border: 1px solid #44403c;
     border-radius: 6px;
     padding: 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    /* Klar definierter, weicher Box-Schatten */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
 }
 
 body.traditional .input-field {
@@ -87,11 +93,18 @@ body.traditional .input-field {
     border-radius: 4px;
     outline: none;
     transition: all 0.2s;
+    /* Verhindert Neon-Glow-Schatten aus dem Matrix-Theme */
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 body.traditional .input-field:focus {
     border-color: #8b5a2b; /* Traditional wood brown accent */
+    box-shadow: none !important;
 }
-body.traditional .input-field::placeholder { color: #a09990; }
+body.traditional .input-field::placeholder {
+    color: #a09990;
+    text-shadow: none !important;
+}
 
 body.traditional .submit-btn {
     width: 100%;
@@ -106,15 +119,19 @@ body.traditional .submit-btn {
     cursor: pointer;
     letter-spacing: 1px;
     transition: all 0.2s;
+    /* Button-Schatten explizit deaktiviert */
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
-body.traditional .submit-btn:hover { background: #a06d3b; }
-body.traditional .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+body.traditional .submit-btn:hover { background: #a06d3b; box-shadow: none !important;}
+body.traditional .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none !important;}
 
 body.traditional .toggle-link {
     font-size: 13px;
     color: #a09990;
     text-align: center;
     cursor: pointer;
+    text-shadow: none !important;
 }
 body.traditional .toggle-link:hover { color: #eaddca; }
 
@@ -122,6 +139,7 @@ body.traditional .error-msg {
     color: #cf6666; /* Muted matte red */
     font-size: 13px;
     text-align: center;
+    text-shadow: none !important;
 }
 
 /* ── MENU ── */
@@ -145,7 +163,8 @@ body.traditional .profile-badge {
     border-radius: 6px;
     padding: 12px 16px;
     font-size: 14px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    /* Klassischer dezenter Box-Schatten */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
 }
 
 body.traditional .profile-meta {
@@ -158,11 +177,13 @@ body.traditional .profile-meta {
 body.traditional .profile-username {
     font-weight: bold;
     color: #f4f1ea;
+    text-shadow: none !important;
 }
 
 body.traditional .profile-elo {
     color: #eaddca;
     font-style: italic;
+    text-shadow: none !important;
 }
 
 body.traditional .profile-badges-wrapper {
@@ -180,6 +201,8 @@ body.traditional .profile-badge-item {
     padding: 2px 8px;
     border-radius: 4px;
     color: #eaddca;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
 body.traditional .menu-buttons {
@@ -205,19 +228,25 @@ body.traditional .menu-btn {
     align-items: flex-start;
     gap: 3px;
     transition: all 0.2s;
+    /* Keine Schatten für die Standard-Menüknöpfe */
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 body.traditional .menu-btn:hover {
     background: #383838;
     border-color: #8b5a2b;
+    box-shadow: none !important;
 }
 body.traditional .menu-btn.online {
     border-color: #8b5a2b;
     background: #33271c; /* Soft amber/wood tinted background */
+    box-shadow: none !important;
 }
 body.traditional .menu-btn-sub {
     font-size: 12px;
     color: #a09990;
     font-style: italic;
+    text-shadow: none !important;
 }
 
 body.traditional .logout-btn {
@@ -232,10 +261,13 @@ body.traditional .logout-btn {
     cursor: pointer;
     border-radius: 4px;
     transition: all 0.2s;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 body.traditional .logout-btn:hover {
     border-color: #cf6666;
     background: #382424;
+    box-shadow: none !important;
 }
 
 /* ── IN-GAME DRAW NOTIFICATION ── */
@@ -248,6 +280,8 @@ body.traditional .draw-notification-banner {
     background: rgba(212, 163, 115, 0.1);
     border-radius: 4px;
     animation: traditional-fade 1.5s infinite alternate;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
 body.traditional .matrix-btn.draw-pending {
@@ -255,12 +289,16 @@ body.traditional .matrix-btn.draw-pending {
     color: #777;
     cursor: not-allowed;
     opacity: 0.6;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
 body.traditional .matrix-btn.draw-accept {
     border-color: #d4a373;
     color: #d4a373;
     animation: traditional-fade 1.2s infinite alternate;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 body.traditional .matrix-btn.draw-accept:hover {
     background: rgba(212, 163, 115, 0.15);
@@ -278,7 +316,9 @@ body.traditional .my-rank-badge {
     border-radius: 6px;
     padding: 10px 16px;
     font-size: 14px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    /* Klassischer dezenter Box-Schatten */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    text-shadow: none !important;
 }
 
 body.traditional .pagination {
@@ -298,6 +338,8 @@ body.traditional .page-btn {
     cursor: pointer;
     border-radius: 4px;
     transition: all 0.2s;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 body.traditional .page-btn:hover:not(:disabled) {
     border-color: #8b5a2b;
@@ -311,6 +353,7 @@ body.traditional .page-btn:disabled {
 body.traditional .page-info {
     font-size: 13px;
     color: #a09990;
+    text-shadow: none !important;
 }
 
 /* ── TERMINAL CONFIRM MODAL (Now Classic Pop-up) ── */
@@ -334,7 +377,8 @@ body.traditional .terminal-popup {
     padding: 30px;
     width: 100%;
     max-width: 400px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    /* Kräftiger, klassischer Pop-Up-Schatten */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
     position: relative;
     text-align: center;
     display: flex;
@@ -353,12 +397,15 @@ body.traditional .terminal-popup::before {
     font-size: 12px;
     color: #eaddca;
     letter-spacing: 1px;
+    text-shadow: none !important;
 }
 
 body.traditional .terminal-popup-text {
     font-size: 15px;
     color: #f4f1ea;
     line-height: 1.5;
+    /* Milder Textschatten für Lesbarkeit */
+    text-shadow: 0 0 5px #7a7c7a !important;
 }
 
 body.traditional .terminal-popup-buttons {
@@ -370,16 +417,7 @@ body.traditional .terminal-popup-buttons {
 body.traditional .terminal-popup-buttons .matrix-btn {
     padding: 8px 20px;
     font-size: 13px;
-}
-
-body.traditional .terminal-popup-buttons .matrix-btn.confirm-yes:hover {
-    border-color: #d4a373;
-    color: #d4a373;
-}
-
-body.traditional .terminal-popup-buttons .matrix-btn.confirm-no:hover {
-    border-color: #cf6666;
-    color: #cf6666;
+    box-shadow: none !important;
 }
 
 /* ── PROMOTION PICKER ── */
@@ -401,6 +439,7 @@ body.traditional .promotion-btn {
     padding: 10px 14px;
     cursor: pointer;
     transition: all 0.2s;
+    box-shadow: none !important;
 }
 body.traditional .promotion-btn:hover {
     background: #383838;
@@ -412,6 +451,7 @@ body.traditional .promotion-btn .piece {
 body.traditional .promotion-label {
     font-size: 0.75rem;
     color: #a09990;
+    text-shadow: none !important;
 }
 
 /* ── RESULT SCREEN ── */
@@ -424,18 +464,21 @@ body.traditional .result-screen {
     background: #2d2d2d;
     border: 1px solid #44403c;
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    /* Klassischer Box-Schatten */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
 }
 
 body.traditional .result-title {
     font-size: 28px;
     color: #eaddca;
     letter-spacing: 1px;
+    text-shadow: none !important;
 }
 
 body.traditional .elo-change {
     font-size: 32px;
     font-weight: bold;
+    text-shadow: none !important;
 }
 body.traditional .elo-change.positive { color: #8b5a2b; }
 body.traditional .elo-change.negative { color: #cf6666; }
@@ -454,6 +497,7 @@ body.traditional .grace-countdown {
     font-weight: bold;
     font-size: 16px;
     animation: traditional-fade 1s infinite alternate;
+    text-shadow: none !important;
 }
 
 body.traditional .move-warning-clock {
@@ -465,6 +509,8 @@ body.traditional .move-warning-clock {
     background: rgba(207, 102, 102, 0.1);
     border-radius: 4px;
     animation: traditional-fade 0.8s infinite alternate;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
 /* ── ACTION BUTTONS ── */
@@ -486,11 +532,15 @@ body.traditional .matrix-btn {
     cursor: pointer;
     border-radius: 4px;
     transition: all 0.2s ease-in-out;
+    /* Verhindert Matrix-Glow-Effekte auf den Tasten */
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
 body.traditional .matrix-btn:hover:not(:disabled) {
     border-color: #8b5a2b;
     background: #383838;
+    box-shadow: none !important;
 }
 
 body.traditional .matrix-btn.resign:hover:not(:disabled) {
@@ -510,6 +560,7 @@ body.traditional .matrix-btn:disabled {
     border-color: #444;
     color: #777;
     cursor: not-allowed;
+    box-shadow: none !important;
 }
 
 /* ── BOARD ── */
@@ -534,7 +585,8 @@ body.traditional .board {
     grid-template-columns: repeat(8, min(64px, 11vw));
     grid-template-rows: repeat(8, min(64px, 11vw));
     border: 4px solid #543d2b; /* Wooden frame color */
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    /* Schwerer, klassischer Holzbrett-Schatten */
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
 }
 
 body.traditional .sq {
@@ -545,6 +597,7 @@ body.traditional .sq {
     justify-content: center;
     cursor: pointer;
     position: relative;
+    box-shadow: none !important; /* Felder werfen einzeln keinen Schatten */
 }
 
 /* Traditional Wooden Chessboard Colors */
@@ -565,15 +618,15 @@ body.traditional .piece {
     line-height: 1;
 }
 
-/* Aesthetic adjustments for classic black and white pieces */
+/* Ästhetische Schattenjustierung für plastische Schachfiguren */
 body.traditional .piece.white {
     color: #ffffff;
-    text-shadow: 0 0 6px #c6c6c6, 0 0 2px #000;
+    text-shadow: 0 0 6px #c6c6c6, 0 0 2px #000 !important;
     filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.4));
 }
 body.traditional .piece.black {
     color: #1a1a1a;
-    text-shadow: 0 0 6px #c6c6c6, 0 0 2px #000;
+    text-shadow: 0 0 6px #c6c6c6, 0 0 2px #000 !important;
     filter: drop-shadow(0px 1px 1px rgba(255,255,255,0.2));
 }
 
@@ -584,6 +637,7 @@ body.traditional .dot {
     border-radius: 50%;
     border: 1px solid rgba(139, 90, 43, 0.5);
     background: rgba(139, 90, 43, 0.5);
+    box-shadow: none !important;
 }
 
 body.traditional .reset-btn {
@@ -596,6 +650,8 @@ body.traditional .reset-btn {
     cursor: pointer;
     border-radius: 4px;
     transition: all 0.2s;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 body.traditional .reset-btn:hover {
     background: #382424;
@@ -610,6 +666,7 @@ body.traditional .sidebar {
     padding: 16px;
     max-height: 560px;
     overflow-y: auto;
+    box-shadow: none !important;
 }
 
 body.traditional .sidebar-title {
@@ -618,12 +675,14 @@ body.traditional .sidebar-title {
     margin-bottom: 12px;
     border-bottom: 1px solid #44403c;
     padding-bottom: 4px;
+    text-shadow: none !important;
 }
 
 body.traditional .no-moves {
     color: #a09990;
     font-size: 13px;
     font-style: italic;
+    text-shadow: none !important;
 }
 
 body.traditional .history-grid {
@@ -635,6 +694,7 @@ body.traditional .history-grid {
 body.traditional .history-item {
     padding: 4px 6px;
     font-size: 13px;
+    text-shadow: none !important;
 }
 body.traditional .white-move {
     color: #f4f1ea;
@@ -658,6 +718,7 @@ body.traditional .online-info {
     border-radius: 6px;
     padding: 10px 16px;
     font-size: 13px;
+    box-shadow: none !important;
 }
 
 body.traditional .leaderboard {
@@ -677,6 +738,7 @@ body.traditional .leaderboard-row {
     border: 1px solid #44403c;
     border-radius: 6px;
     font-size: 14px;
+    box-shadow: none !important;
 }
 body.traditional .leaderboard-row.top {
     border-color: #8b5a2b;
@@ -685,9 +747,10 @@ body.traditional .leaderboard-row.top {
 body.traditional .lb-rank {
     width: 36px;
     color: #a09990;
+    text-shadow: none !important;
 }
-body.traditional .lb-name { flex: 1; color: #f4f1ea; }
-body.traditional .lb-elo { color: #eaddca; font-style: italic; }
+body.traditional .lb-name { flex: 1; color: #f4f1ea; text-shadow: none !important; }
+body.traditional .lb-elo { color: #eaddca; font-style: italic; text-shadow: none !important; }
 
 /* ── TOP 5 LEADERBOARD SELECTION ── */
 body.traditional .section-title {
@@ -697,6 +760,7 @@ body.traditional .section-title {
     margin: 20px 0 10px 0;
     width: 100%;
     max-width: 440px;
+    text-shadow: none !important;
 }
 
 body.traditional .top-five-container {
@@ -710,7 +774,8 @@ body.traditional .top-five-container {
     border: 1px solid #44403c;
     width: 100%;
     max-width: 440px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    /* Klassischer Box-Schatten */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
 }
 
 body.traditional .top-card {
@@ -721,11 +786,13 @@ body.traditional .top-card {
     background: #212121;
     border: 1px solid #3a3a3a;
     transition: all 0.2s ease-in-out;
+    box-shadow: none !important;
 }
 
 body.traditional .top-card:hover {
     border-color: #8b5a2b;
     background: #282828;
+    box-shadow: none !important;
 }
 
 /* Wooden tone accents for placing instead of matrix neon lines */
@@ -740,6 +807,7 @@ body.traditional .top-card-badge {
     margin-right: 16px;
     min-width: 32px;
     text-align: center;
+    text-shadow: none !important;
 }
 
 body.traditional .top-card-info {
@@ -752,17 +820,20 @@ body.traditional .top-card-name {
     font-weight: bold;
     font-size: 15px;
     color: #f4f1ea;
+    text-shadow: none !important;
 }
 
 body.traditional .top-card-elo {
     font-size: 12px;
     color: #a09990;
     margin-top: 2px;
+    text-shadow: none !important;
 }
 
 body.traditional .top-card-rank-text {
     font-size: 15px;
     color: #57534e;
+    text-shadow: none !important;
 }
 
 body.traditional .divider {
@@ -772,29 +843,33 @@ body.traditional .divider {
     margin: 20px 0;
     width: 100%;
     max-width: 440px;
+    box-shadow: none !important;
 }
 
-body.traditional .rank-error { color: #cf6666; text-shadow: none; }
+body.traditional .rank-error { color: #cf6666; text-shadow: none !important; }
 body.traditional .my-badges-wrapper { border-top: 1px solid #44403c; }
 
-body.traditional .profile-badge-item {
-    color: #d4a373;
-    background: #332b24;
-    border-color: #57534e;
-    font-family: 'Georgia', serif;
-}
 body.traditional .profile-badge-item.text-badge {
     color: #d4a373;
     background: transparent;
     border: none;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
 body.traditional .admin-panel {
     border: 1px dashed #cf6666;
     background: rgba(207, 102, 102, 0.05);
+    box-shadow: none !important;
 }
-body.traditional .admin-title { color: #cf6666; text-shadow: none; }
-body.traditional .admin-btn { background: #382424 !important; border-color: #cf6666 !important; color: #cf6666 !important; }
+body.traditional .admin-title { color: #cf6666; text-shadow: none !important; }
+body.traditional .admin-btn {
+    background: #382424 !important;
+    border-color: #cf6666 !important;
+    color: #cf6666 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
 
 /* ── ANIMATIONS ── */
 @keyframes traditional-fade {
@@ -807,13 +882,3 @@ body.traditional .admin-btn { background: #382424 !important; border-color: #cf6
     body.traditional .online-info {
         flex-direction: column;
         justify-content: space-between;
-    }
-}
-
-@media (min-width: 700px) {
-    body.traditional .main {
-        flex-direction: row;
-        align-items: flex-start;
-        justify-content: center;
-    }
-}
