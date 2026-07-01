@@ -41,11 +41,12 @@ function filterDuplicateBadges(badgesArray) {
 
 const THEME_LABELS = {
     traditional: '📜 Klassischer Look',
-    green:       '🟢 Green Theme',
+    green:       '🟢 Green/Black Theme',
     violet:      '🟣 Violet Theme',
     red:         '🔴 Red Theme',
     yellow:      '🟡 Yellow Theme',
     blue:        '🔵 Blue Theme',
+    greennormal: '🟢 Green Theme',
 };
 
     // Neues Theme hier ergänzen, z.B.:

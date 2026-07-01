@@ -11,8 +11,9 @@ import "./Violet.css"
 import "./Red.css"
 import "./Yellow.css"
 import "./Blue.css"
+import "./GreenNormal.css"
 
-const THEMES = ['traditional', 'green', 'violet', 'red', 'yellow', 'blue']
+const THEMES = ['traditional', 'green', 'violet', 'red', 'yellow', 'blue', 'greennormal']
 // Reihenfolge beliebig erweiterbar — einfach neuen String hinzufügen
 // und eine passende CSS-Datei mit body.THEMENAME { ... } erstellen
 
