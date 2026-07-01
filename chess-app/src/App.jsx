@@ -8,11 +8,11 @@ import Leaderboard from "./Leaderboard.jsx";
 import "./Classical.css"
 import "./Green.css"
 import "./Violet.css"
-// Neue Themes hier importieren, z.B.:
-// import "./Wood.css"
-// import "./Neon.css"
+import "./Red.css"
+import "./Yellow.css"
+import "./Blue.css"
 
-const THEMES = ['traditional', 'green', 'violet']
+const THEMES = ['traditional', 'green', 'violet', 'red', 'yellow', 'blue']
 // Reihenfolge beliebig erweiterbar — einfach neuen String hinzufügen
 // und eine passende CSS-Datei mit body.THEMENAME { ... } erstellen
 

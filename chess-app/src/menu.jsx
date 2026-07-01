@@ -43,6 +43,9 @@ const THEME_LABELS = {
     traditional: '📜 Klassischer Look',
     green:       '🟢 Green Theme',
     violet:      '🟣 Violet Theme',
+    red:         '🔴 Red Theme',
+    yellow:      '🟡 Yellow Theme',
+    blue:        '🔵 Blue Theme',
 };
 
     // Neues Theme hier ergänzen, z.B.:
