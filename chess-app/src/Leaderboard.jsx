@@ -54,6 +54,7 @@ export default function Leaderboard({ onBack, user }) {
     const [myProfile, setMyProfile] = useState(null)
     const [loadingRank, setLoadingRank] = useState(true)
     const [rankErrorMsg, setRankErrorMsg] = useState(null)
+    const [selectedPlayer, setSelectedPlayer] = useState(null)
 
     const ADMIN_ID = "4260345b-edac-4666-992f-d6a9e1d139c4";
     const targetId = user?.id || user?.user?.id || user?.data?.user?.id || user?.data?.id;
@@ -71,6 +72,15 @@ export default function Leaderboard({ onBack, user }) {
             setRankErrorMsg("User-ID-Struktur falsch")
         }
     }, [targetId, user])
+
+    useEffect(() => {
+        function closeOnEscape(event) {
+            if (event.key === 'Escape') setSelectedPlayer(null)
+        }
+
+        window.addEventListener('keydown', closeOnEscape)
+        return () => window.removeEventListener('keydown', closeOnEscape)
+    }, [])
 
     async function runMonthlySeasonReset() {
         const confirmation = window.confirm("Möchtest du die aktuelle Saison wirklich beenden? Alle Elos werden auf 1200 zurückgesetzt!");
@@ -208,6 +218,9 @@ export default function Leaderboard({ onBack, user }) {
     const totalPages = Math.ceil(total / PAGE_SIZE)
     const globalOffset = page * PAGE_SIZE
     const isAdmin = user?.id === ADMIN_ID;
+    const selectedBadges = selectedPlayer
+        ? filterDuplicateBadges(selectedPlayer.badges)
+        : [];
 
     return (
         <div className="app">
@@ -253,25 +266,25 @@ export default function Leaderboard({ onBack, user }) {
                     <p className="no-moves">Lade Champions...</p>
                 ) : (
                     topPlayers.map((player, i) => (
-                        <div key={i} className={`top-card rank-${i + 1}`}>
+                        <button
+                            key={i}
+                            type="button"
+                            className={`top-card rank-${i + 1}`}
+                            onClick={() => setSelectedPlayer({
+                                ...player,
+                                rank: i + 1
+                            })}
+                            aria-label={`Details für ${player.username}`}
+                        >
                             <div className="top-card-badge">{medals[i]}</div>
                             <div className="top-card-info">
                                 <span className="top-card-name">
                                     <span className="player-name">{player.username}</span>
-                                    {player.badges && player.badges.length > 0 && (
-                                        <span className="name-badges-inline">
-                                            {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
-                                                <span key={idx} className="profile-badge-item text-badge" title={badge.season_name}>
-                                                    {getBadgeLabel(badge.rank_tier)}
-                                                </span>
-                                            ))}
-                                        </span>
-                                    )}
                                 </span>
                                 <span className="top-card-elo">⚡ {player.elo} Elo</span>
                             </div>
                             <div className="top-card-rank-text">#{i + 1}</div>
-                        </div>
+                        </button>
                     ))
                 )}
             </div>
@@ -285,30 +298,26 @@ export default function Leaderboard({ onBack, user }) {
                 {!loading && players.map((player, i) => {
                     const globalIndex = globalOffset + i
                     return (
-                        <div key={i} className={`leaderboard-row ${globalIndex < 3 ? 'top' : ''}`}>
+                        <button
+                            key={i}
+                            type="button"
+                            className={`leaderboard-row ${globalIndex < 3 ? 'top' : ''}`}
+                            onClick={() => setSelectedPlayer({
+                                ...player,
+                                rank: globalIndex + 1
+                            })}
+                            aria-label={`Details für ${player.username}`}
+                        >
                             <span className="lb-rank">
                                 {globalIndex < 3 ? medals[globalIndex] : `#${globalIndex + 1}`}
                             </span>
 
                             <span className="lb-name">
                                 <span className="player-name">{player.username}</span>
-                                {player.badges && player.badges.length > 0 && (
-                                    <span className="name-badges-inline">
-                                        {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="profile-badge-item text-badge"
-                                                title={badge.season_name}
-                                            >
-                                                {getBadgeLabel(badge.rank_tier)}
-                                            </span>
-                                        ))}
-                                    </span>
-                                )}
                             </span>
 
                             <span className="lb-elo">⚡ {player.elo}</span>
-                        </div>
+                        </button>
                     )
                 })}
             </div>
@@ -343,6 +352,47 @@ export default function Leaderboard({ onBack, user }) {
                     <button className="matrix-btn resign admin-btn" onClick={runMonthlySeasonReset}>
                         TRIGGER SEASONAL RESET
                     </button>
+                </div>
+            )}
+
+            {selectedPlayer && (
+                <div
+                    className="player-modal-backdrop"
+                    role="presentation"
+                    onClick={() => setSelectedPlayer(null)}
+                >
+                    <section
+                        className="player-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="player-modal-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            className="player-modal-close"
+                            onClick={() => setSelectedPlayer(null)}
+                            aria-label="Details schließen"
+                        >
+                            ×
+                        </button>
+                        <p className="player-modal-rank">#{selectedPlayer.rank}</p>
+                        <h2 id="player-modal-title">{selectedPlayer.username}</h2>
+                        <p className="player-modal-elo">⚡ {selectedPlayer.elo} Elo</p>
+                        <div className="player-modal-badges">
+                            <h3>Saison-Badges</h3>
+                            {selectedBadges.length > 0 ? (
+                                selectedBadges.map((badge, idx) => (
+                                    <div className="player-modal-badge" key={`${badge.season_name}-${idx}`}>
+                                        <span>{getBadgeLabel(badge.rank_tier)}</span>
+                                        <small>{badge.season_name}</small>
+                                    </div>
+                                ))
+                            ) : (
+                                <p>Noch keine Badges</p>
+                            )}
+                        </div>
+                    </section>
                 </div>
             )}
         </div>
