@@ -257,7 +257,7 @@ export default function Leaderboard({ onBack, user }) {
                             <div className="top-card-badge">{medals[i]}</div>
                             <div className="top-card-info">
                                 <span className="top-card-name">
-                                    {player.username}
+                                    <span className="player-name">{player.username}</span>
                                     {player.badges && player.badges.length > 0 && (
                                         <span className="name-badges-inline">
                                             {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (
@@ -291,7 +291,7 @@ export default function Leaderboard({ onBack, user }) {
                             </span>
 
                             <span className="lb-name">
-                                {player.username}
+                                <span className="player-name">{player.username}</span>
                                 {player.badges && player.badges.length > 0 && (
                                     <span className="name-badges-inline">
                                         {filterDuplicateBadges(player.badges).slice(0, 3).map((badge, idx) => (

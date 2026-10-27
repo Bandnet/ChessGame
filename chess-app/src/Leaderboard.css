@@ -19,6 +19,14 @@
 }
 
 .lb-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.player-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -34,9 +42,27 @@
 }
 
 .top-card-name {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+.name-badges-inline {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex-shrink: 0;
+    white-space: normal;
+}
+
+.my-rank-user,
+.my-rank-pos,
+.my-rank-elo {
+    flex: 1 1 auto;
+    min-width: max-content;
+    text-align: center;
 }
 
 @media (max-width: 420px) {
