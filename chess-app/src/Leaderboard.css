@@ -1,0 +1,60 @@
+.leaderboard,
+.top-five-container,
+.section-title,
+.divider,
+.my-rank-badge {
+    box-sizing: border-box;
+    max-width: min(440px, calc(100vw - 32px));
+}
+
+.leaderboard-row {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.lb-rank,
+.lb-elo {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.lb-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.top-card {
+    min-width: 0;
+}
+
+.top-card-info {
+    min-width: 0;
+}
+
+.top-card-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+    .leaderboard-row {
+        gap: 8px;
+        padding-inline: 10px;
+    }
+
+    .top-five-container {
+        padding: 12px;
+    }
+
+    .top-card {
+        padding-inline: 10px;
+    }
+
+    .top-card-badge {
+        margin-right: 10px;
+        min-width: 26px;
+    }
+}

@@ -12,6 +12,7 @@ import "./Red.css"
 import "./Yellow.css"
 import "./Blue.css"
 import "./GreenNormal.css"
+import "./Leaderboard.css"
 
 const THEMES = ['traditional', 'green', 'violet', 'red', 'yellow', 'blue', 'greennormal']
 // Reihenfolge beliebig erweiterbar — einfach neuen String hinzufügen
